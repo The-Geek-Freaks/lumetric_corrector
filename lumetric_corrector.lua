@@ -510,257 +510,305 @@ end
 
 -- Hilfsfunktion für Voreinstellungen
 local function apply_preset(data, preset_type)
-    log_debug("Preset wird angewendet: " .. preset_type)
-    local settings = obs.obs_data_create()
-    
-    -- Standardwerte setzen
-    obs.obs_data_set_double(settings, "exposure", 0.0)
-    obs.obs_data_set_double(settings, "contrast", 0.0)
-    obs.obs_data_set_double(settings, "brightness", 0.0)
-    obs.obs_data_set_double(settings, "highlights", 0.0)
-    obs.obs_data_set_double(settings, "shadows", 0.0)
-    obs.obs_data_set_double(settings, "whites", 0.0)
-    obs.obs_data_set_double(settings, "blacks", 0.0)
-    obs.obs_data_set_double(settings, "temperature", 0.0)
-    obs.obs_data_set_double(settings, "tint", 0.0)
-    obs.obs_data_set_double(settings, "saturation", 0.0)
-    obs.obs_data_set_double(settings, "vibrance", 0.0)
-    obs.obs_data_set_double(settings, "vignette_amount", 0.0)
-    obs.obs_data_set_double(settings, "vignette_radius", 0.5)
-    obs.obs_data_set_double(settings, "vignette_feather", 0.1)
-    obs.obs_data_set_double(settings, "grain_amount", 0.0)
-    obs.obs_data_set_double(settings, "grain_size", 10.0)
-    obs.obs_data_set_double(settings, "time_seed", 0.0)
-    
-    -- Je nach ausgewählter Voreinstellung die Parameter setzen
-    if preset_type == "neutral" then
-        -- Neutral - Alle Werte auf 0 zurücksetzen (oben bereits geschehen)
-    elseif preset_type == "cinematic" then
-        -- Filmischer Look
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "warm" then
-        -- Warmer Look
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-    elseif preset_type == "cool" then
-        -- Kühler Look
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-    elseif preset_type == "vibrant" then
-        -- Lebendiger Look
-        obs.obs_data_set_double(settings, "contrast", 0.15)
-        obs.obs_data_set_double(settings, "saturation", 0.2)
-        obs.obs_data_set_double(settings, "vibrance", 0.3)
-        obs.obs_data_set_double(settings, "highlights", 0.05)
-    elseif preset_type == "teal_orange" then
-        -- Teal & Orange
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "vintage_film" then
-        -- Vintage Film
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "dramatic" then
-        -- Dramatic Contrast
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "bleach_bypass" then
-        -- Bleach Bypass
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "moody_blue" then
-        -- Moody Blue
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "horror" then
-        -- Horror Tone
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "warm_portrait" then
-        -- Warm Portrait
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "soft_light" then
-        -- Soft Light
-        obs.obs_data_set_double(settings, "contrast", -0.1)
-        obs.obs_data_set_double(settings, "highlights", 0.1)
-        obs.obs_data_set_double(settings, "shadows", -0.1)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.1)
-        obs.obs_data_set_double(settings, "grain_amount", 0.05)
-    elseif preset_type == "retro_80s" then
-        -- 80s Retro
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "vhs_90s" then
-        -- 90s VHS
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "film_70s" then
-        -- 70s Film
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "sepia" then
-        -- Sepia Tone
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "bw" then
-        -- Black & White
-        obs.obs_data_set_double(settings, "saturation", -1.0)
-    elseif preset_type == "faded" then
-        -- Faded Shadows
-        obs.obs_data_set_double(settings, "contrast", -0.1)
-        obs.obs_data_set_double(settings, "highlights", 0.1)
-        obs.obs_data_set_double(settings, "shadows", -0.1)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.1)
-        obs.obs_data_set_double(settings, "grain_amount", 0.05)
-    elseif preset_type == "cross_process" then
-        -- Cross Process
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "day_for_night" then
-        -- Day For Night
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "night_vision" then
-        -- Night Enhancer
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "sunset" then
-        -- Sunset Glow
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "forest" then
-        -- Forest Green
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "desert" then
-        -- Desert Heat
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "arctic" then
-        -- Arctic Chill
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "cyberpunk" then
-        -- Cyberpunk
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
+    -- Validierung der Eingabeparameter
+    if not data then
+        log_debug("FEHLER: apply_preset wurde mit ungültigem data-Objekt aufgerufen")
+        return false
     end
     
-    source_info.update(data, settings)
-    obs.obs_source_update(data.source, settings)
-    obs.obs_data_release(settings)
+    if not preset_type or preset_type == "" then
+        log_debug("FEHLER: apply_preset wurde mit ungültigem preset_type aufgerufen: " .. tostring(preset_type))
+        return false
+    end
+    
+    log_debug("Preset wird angewendet: " .. preset_type)
+    
+    -- Prüfen, ob source existiert
+    if not data.source then
+        log_debug("FEHLER: data.source existiert nicht")
+        return false
+    end
+    
+    local settings = obs.obs_data_create()
+    if not settings then
+        log_debug("FEHLER: Konnte keine Einstellungen erstellen")
+        return false
+    end
+    
+    -- Sichere Ausführung der Preset-Anwendung
+    local success, err = pcall(function()
+        -- Standardwerte setzen
+        obs.obs_data_set_double(settings, "exposure", 0.0)
+        obs.obs_data_set_double(settings, "contrast", 0.0)
+        obs.obs_data_set_double(settings, "brightness", 0.0)
+        obs.obs_data_set_double(settings, "highlights", 0.0)
+        obs.obs_data_set_double(settings, "shadows", 0.0)
+        obs.obs_data_set_double(settings, "whites", 0.0)
+        obs.obs_data_set_double(settings, "blacks", 0.0)
+        obs.obs_data_set_double(settings, "temperature", 0.0)
+        obs.obs_data_set_double(settings, "tint", 0.0)
+        obs.obs_data_set_double(settings, "saturation", 0.0)
+        obs.obs_data_set_double(settings, "vibrance", 0.0)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.0)
+        obs.obs_data_set_double(settings, "vignette_radius", 0.5)
+        obs.obs_data_set_double(settings, "vignette_feather", 0.1)
+        obs.obs_data_set_double(settings, "grain_amount", 0.0)
+        obs.obs_data_set_double(settings, "grain_size", 10.0)
+        obs.obs_data_set_double(settings, "time_seed", 0.0)
+        
+        -- Je nach ausgewählter Voreinstellung die Parameter setzen
+        if preset_type == "neutral" then
+            -- Neutral - Alle Werte auf 0 zurücksetzen (oben bereits geschehen)
+        elseif preset_type == "cinematic" then
+            -- Filmischer Look
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "warm" then
+            -- Warmer Look
+            obs.obs_data_set_double(settings, "temperature", 0.2)
+            obs.obs_data_set_double(settings, "tint", -0.05)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+        elseif preset_type == "cool" then
+            -- Kühler Look
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+        elseif preset_type == "vibrant" then
+            -- Lebendiger Look
+            obs.obs_data_set_double(settings, "contrast", 0.15)
+            obs.obs_data_set_double(settings, "saturation", 0.2)
+            obs.obs_data_set_double(settings, "vibrance", 0.3)
+            obs.obs_data_set_double(settings, "highlights", 0.05)
+        elseif preset_type == "teal_orange" then
+            -- Teal & Orange
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "tint", -0.05)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "vintage_film" then
+            -- Vintage Film
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "dramatic" then
+            -- Dramatic Contrast
+            obs.obs_data_set_double(settings, "contrast", 0.2)
+            obs.obs_data_set_double(settings, "highlights", -0.2)
+            obs.obs_data_set_double(settings, "shadows", 0.3)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "bleach_bypass" then
+            -- Bleach Bypass
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "moody_blue" then
+            -- Moody Blue
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "horror" then
+            -- Horror Tone
+            obs.obs_data_set_double(settings, "contrast", 0.2)
+            obs.obs_data_set_double(settings, "highlights", -0.2)
+            obs.obs_data_set_double(settings, "shadows", 0.3)
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "warm_portrait" then
+            -- Warm Portrait
+            obs.obs_data_set_double(settings, "temperature", 0.2)
+            obs.obs_data_set_double(settings, "tint", -0.05)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "soft_light" then
+            -- Soft Light
+            obs.obs_data_set_double(settings, "contrast", -0.1)
+            obs.obs_data_set_double(settings, "highlights", 0.1)
+            obs.obs_data_set_double(settings, "shadows", -0.1)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.1)
+            obs.obs_data_set_double(settings, "grain_amount", 0.05)
+        elseif preset_type == "retro_80s" then
+            -- 80s Retro
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "vhs_90s" then
+            -- 90s VHS
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "film_70s" then
+            -- 70s Film
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "sepia" then
+            -- Sepia Tone
+            obs.obs_data_set_double(settings, "temperature", 0.2)
+            obs.obs_data_set_double(settings, "tint", -0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "bw" then
+            -- Black & White
+            obs.obs_data_set_double(settings, "saturation", -1.0)
+        elseif preset_type == "faded" then
+            -- Faded Shadows
+            obs.obs_data_set_double(settings, "contrast", -0.1)
+            obs.obs_data_set_double(settings, "highlights", 0.1)
+            obs.obs_data_set_double(settings, "shadows", -0.1)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.1)
+            obs.obs_data_set_double(settings, "grain_amount", 0.05)
+        elseif preset_type == "cross_process" then
+            -- Cross Process
+            obs.obs_data_set_double(settings, "contrast", 0.1)
+            obs.obs_data_set_double(settings, "highlights", -0.1)
+            obs.obs_data_set_double(settings, "shadows", 0.15)
+            obs.obs_data_set_double(settings, "temperature", 0.1)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "day_for_night" then
+            -- Day For Night
+            obs.obs_data_set_double(settings, "contrast", 0.2)
+            obs.obs_data_set_double(settings, "highlights", -0.2)
+            obs.obs_data_set_double(settings, "shadows", 0.3)
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "night_vision" then
+            -- Night Enhancer
+            obs.obs_data_set_double(settings, "contrast", 0.2)
+            obs.obs_data_set_double(settings, "highlights", -0.2)
+            obs.obs_data_set_double(settings, "shadows", 0.3)
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        elseif preset_type == "sunset" then
+            -- Sunset Glow
+            obs.obs_data_set_double(settings, "temperature", 0.2)
+            obs.obs_data_set_double(settings, "tint", -0.05)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "forest" then
+            -- Forest Green
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "desert" then
+            -- Desert Heat
+            obs.obs_data_set_double(settings, "temperature", 0.2)
+            obs.obs_data_set_double(settings, "tint", -0.05)
+            obs.obs_data_set_double(settings, "saturation", 0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "arctic" then
+            -- Arctic Chill
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
+            obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
+            obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
+            obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        elseif preset_type == "cyberpunk" then
+            -- Cyberpunk
+            obs.obs_data_set_double(settings, "contrast", 0.2)
+            obs.obs_data_set_double(settings, "highlights", -0.2)
+            obs.obs_data_set_double(settings, "shadows", 0.3)
+            obs.obs_data_set_double(settings, "temperature", -0.2)
+            obs.obs_data_set_double(settings, "tint", 0.05)
+            obs.obs_data_set_double(settings, "saturation", -0.05)
+            obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+            obs.obs_data_set_double(settings, "grain_amount", 0.1)
+        else
+            -- Unbekannte Voreinstellung, aber wir crashen nicht - wir loggen nur
+            log_debug("WARNUNG: Unbekannte Voreinstellung: " .. preset_type)
+        end
+        
+        if source_info and source_info.update then
+            source_info.update(data, settings)
+        else
+            log_debug("FEHLER: source_info oder source_info.update nicht definiert")
+        end
+        
+        if data.source then
+            obs.obs_source_update(data.source, settings)
+        else
+            log_debug("FEHLER: data.source nicht definiert")
+        end
+    end)
+    
+    if not success then
+        log_debug("FEHLER beim Anwenden der Voreinstellung: " .. tostring(err))
+        if settings then
+            obs.obs_data_release(settings)
+        end
+        return false
+    end
+    
+    if settings then
+        obs.obs_data_release(settings)
+    end
     
     log_debug("Preset erfolgreich angewendet: " .. preset_type)
     return true
@@ -1000,10 +1048,26 @@ source_info.get_properties = function(data)
     local apply_button = obs.obs_properties_add_button(preset_group, "apply_preset_button", _("apply_preset"), 
         function(properties, property) 
             if data ~= nil then
-                local preset = obs.obs_data_get_string(data.settings, "preset_select")
-                if preset ~= "" then
-                    apply_preset(data, preset)
+                -- Sichere Ausführung mit error handling
+                local success, result = pcall(function()
+                    if data.settings then
+                        local preset = obs.obs_data_get_string(data.settings, "preset_select")
+                        if preset and preset ~= "" then
+                            return apply_preset(data, preset)
+                        else
+                            log_debug("WARNUNG: Keine Voreinstellung ausgewählt")
+                        end
+                    else
+                        log_debug("FEHLER: data.settings ist nicht definiert")
+                    end
+                    return false
+                end)
+                
+                if not success then
+                    log_debug("FEHLER im Knopf-Callback: " .. tostring(result))
                 end
+            else
+                log_debug("FEHLER: data-Objekt ist nil im Knopf-Callback")
             end
             return true
         end)
