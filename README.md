@@ -15,7 +15,7 @@
 </div>
 
 <div align="center">
-  <img src="docs/banner.png" alt="Lumetric Corrector by The Geek Freaks" width="800"/>
+  <img src="icon/banner.png" alt="Lumetric Corrector by The Geek Freaks" width="800"/>
 </div>
 
 ## 📑 Table of Contents
