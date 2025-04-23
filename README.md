@@ -41,6 +41,10 @@
   - Saturation and vibrance enhancement
   - Fine-tuned color balance for cinematic looks
 
+<div align="center">
+  <img src="docs/features-correction.png" alt="Color Correction Features" width="800"/>
+</div>
+
 ### 🎨 Creative Color Control
 - **25+ Professional Presets**:
   - Mood-based presets like Cinematic, Teal & Orange, Dramatic Contrast
@@ -50,6 +54,10 @@
   - Vignette with adjustable radius and feathering
   - Film grain simulation with size control
   - Real-time preview for immediate visual feedback
+
+<div align="center">
+  <img src="docs/features-grading.png" alt="Creative Color Grading" width="800"/>
+</div>
 
 ### ⚙️ Professional Features
 - **Performance Optimized**:
@@ -69,6 +77,10 @@
 - Correct problematic lighting in gaming setups
 - Match colors across different cameras or scenes
 
+<div align="center">
+  <img src="docs/usecase-streaming.png" alt="Streaming Enhancement" width="800"/>
+</div>
+
 ### Content Creation
 - Apply film-like color grading to video productions
 - Correct white balance and exposure issues
@@ -80,6 +92,10 @@
 - Simulate vintage film stocks or modern cinema looks
 - Create genre-specific aesthetics (horror, sci-fi, drama)
 - Enhance viewer engagement with polished visuals
+
+<div align="center">
+  <img src="docs/usecase-creative.png" alt="Creative Expression" width="800"/>
+</div>
 
 ## 💻 Installation
 
@@ -93,6 +109,10 @@
    - Click the + button
    - Select the downloaded `lumetric_corrector.lua` file
    - Add as a filter to any source or scene
+
+<div align="center">
+  <img src="docs/installation.png" alt="Installation Process" width="800"/>
+</div>
 
 ### Platform-Specific Notes
 
@@ -125,6 +145,10 @@ Lumetric Corrector includes professionally designed presets for instant looks:
 7. **Horror Tone**: Dark and unsettling color palette
 8. **Warm Portrait**: Flattering skin tones enhancement
 
+<div align="center">
+  <img src="docs/presets-mood.png" alt="Mood Presets" width="800"/>
+</div>
+
 ### Era Presets
 Create period-specific looks:
 
@@ -133,6 +157,10 @@ Create period-specific looks:
 - **70s Film**: Warm vintage aesthetic
 - **Sepia Tone**: Classic antique photo look
 - **Black & White**: Monochromatic conversion
+
+<div align="center">
+  <img src="docs/presets-era.png" alt="Era Presets" width="800"/>
+</div>
 
 ### Color Style Presets
 Creative color treatments:
@@ -146,6 +174,10 @@ Creative color treatments:
 - **Desert Heat**: Warm arid environment simulation
 - **Arctic Chill**: Cold blue-tinted environment
 - **Cyberpunk**: Futuristic neon-inspired grading
+
+<div align="center">
+  <img src="docs/presets-style.png" alt="Color Style Presets" width="800"/>
+</div>
 
 ## 🛠️ Configuration
 
@@ -166,6 +198,10 @@ Creative color treatments:
    - Tint: Green/magenta balance (-1.0 to 1.0)
    - Saturation: Color intensity (-1.0 to 1.0)
    - Vibrance: Intelligent saturation enhancement (-1.0 to 1.0)
+
+<div align="center">
+  <img src="docs/configuration-interface.png" alt="Configuration Interface" width="800"/>
+</div>
 
 ### Advanced Color Grading
 1. **Shadows Color Wheels**:
