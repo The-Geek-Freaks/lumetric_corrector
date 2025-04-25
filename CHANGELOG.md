@@ -29,3 +29,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible with OBS Studio 30.0+
 - Cross-platform support (Windows, macOS, Linux)
 - GPU-accelerated processing for efficient rendering
+
+## [1.1.0] - 2025-04-25
+
+### Changed
+- Performance-Optimierung: Shader-Parameter werden nur noch gesetzt, wenn sich der Wert geändert hat (reduziert GPU-Load und verbessert die Effizienz).
+- Zeitsensitive Aktualisierung der Filmkorn-Animation durch Timer.
+- Verbesserte Fehlerbehandlung und Debug-Logging während des Renderings und beim Laden von Shadern.
+- Verbesserte Parameterstruktur und Initialisierung für mehr Robustheit.
+
+### Fixed
+- Lua-Syntaxfehler in den Parameter-Update-Blöcken beseitigt.
+- OBS-API-Aufrufe (gs_effect_set_float, gs_effect_set_texture) korrekt über das obs-Modul eingebunden.
+- Kompatibilität mit aktuellen OBS Studio Lua-Standards sichergestellt.
+
+### Internal
+- Code-Refactoring und bessere Lesbarkeit.
+- Vorbereitung für weitere Optimierungen und Features.

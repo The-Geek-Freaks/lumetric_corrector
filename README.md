@@ -27,6 +27,7 @@
 - [🎮 Usage](#-usage)
 - [🔧 Troubleshooting](#-troubleshooting)
 - [📄 License](#-license)
+- [📝 Changelog](#-changelog)
 
 ## ✨ Key Features
 
@@ -273,6 +274,17 @@ If you encounter issues not covered here, please:
 - Create an issue on the [GitHub repository](https://github.com/The-Geek-Freaks/lumetric_corrector/issues)
 - Include your system specifications and OBS Studio version
 - Provide clear steps to reproduce the problem
+
+## 📝 Changelog
+
+Siehe [CHANGELOG.md](./CHANGELOG.md) für eine vollständige Liste aller Änderungen und Verbesserungen.
+
+### Neu in Version 1.1.0 (ULTRA Optimized)
+- Deutlich verbesserte Performance durch gezieltes Parameter-Update
+- Zeitsensitive Animation für Film Grain
+- Verbesserte Fehlerbehandlung und Logging
+- Beseitigung von Lua- und API-Kompatibilitätsproblemen
+- Code-Refactoring für bessere Wartbarkeit
 
 ## 📄 License
 This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.

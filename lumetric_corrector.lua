@@ -17,13 +17,21 @@ source_info.id = "lumetric_corrector_filter"
 source_info.type = obs.OBS_SOURCE_TYPE_FILTER
 source_info.output_flags = bit.bor(obs.OBS_SOURCE_VIDEO, obs.OBS_SOURCE_CUSTOM_DRAW)
 
+-- Zeitsensitive Aktualisierung (alle 1000ms)
+local function update_time_seed()
+    if data then
+        data.time_seed = obs.os_gettime_s()
+    end
+end
+obs.timer_add(update_time_seed, 1000)
+
+
 -- Übersetzungen
 local translations = {
     ["en-US"] = {
         ["lumetric_corrector"] = "Lumetric Corrector",
         ["presets"] = "Presets",
         ["preset_neutral"] = "Neutral",
-        ["preset_cinematic"] = "Cinematic",
         ["preset_warm"] = "Warm",
         ["preset_cool"] = "Cool",
         ["preset_vibrant"] = "Vibrant",
@@ -50,11 +58,31 @@ local translations = {
         ["grain_amount"] = "Amount",
         ["grain_size"] = "Size",
         ["time_seed"] = "Time Seed",
-        ["user_presets"] = "User Presets",
-        ["preset_name"] = "Preset Name",
-        ["save_preset"] = "Save Preset",
-        ["load_preset"] = "Load Preset",
-        ["delete_preset"] = "Delete Preset",
+        ["select_preset"] = "Select Preset",
+        ["neutral"] = "Neutral",
+        ["warm"] = "Warm",
+        ["cool"] = "Cool",
+        ["contrast_boost"] = "Contrast Boost",
+        ["contrast_reduce"] = "Contrast Reduce",
+        ["bright"] = "Bright",
+        ["dark"] = "Dark",
+        ["vintage"] = "Vintage",
+        ["bw"] = "Black & White",
+        ["bw_high_contrast"] = "B&W High Contrast",
+        ["sepia"] = "Sepia",
+        ["filmic"] = "Filmic",
+        ["cinematic"] = "Cinematic",
+        ["dramatic"] = "Dramatic",
+        ["vibrant"] = "Vibrant",
+        ["muted"] = "Muted",
+        ["warm_contrast"] = "Warm Contrast",
+        ["cool_contrast"] = "Cool Contrast",
+        ["shadows_blue"] = "Shadows Blue",
+        ["shadows_green"] = "Shadows Green",
+        ["highlights_warm"] = "Highlights Warm",
+        ["sunset"] = "Sunset",
+        ["moonlight"] = "Moonlight",
+        ["vivid_warm"] = "Vivid Warm",
         ["color_wheels"] = "Color Balance",
         ["shadows_color_r"] = "Shadows Red",
         ["shadows_color_g"] = "Shadows Green",
@@ -64,13 +92,16 @@ local translations = {
         ["midtones_color_b"] = "Midtones Blue",
         ["highlights_color_r"] = "Highlights Red",
         ["highlights_color_g"] = "Highlights Green",
-        ["highlights_color_b"] = "Highlights Blue"
+        ["highlights_color_b"] = "Highlights Blue",
+        ["basic_presets"] = "--- BASIC PRESETS ---",
+        ["style_presets"] = "--- STYLE PRESETS ---",
+        ["color_mood_presets"] = "--- COLOR MOOD PRESETS ---",
+        ["era_presets"] = "--- ERA PRESETS ---"
     },
     ["de-DE"] = {
         ["lumetric_corrector"] = "Lumetric Korrektor",
         ["presets"] = "Voreinstellungen",
         ["preset_neutral"] = "Neutral",
-        ["preset_cinematic"] = "Kinematisch",
         ["preset_warm"] = "Warm",
         ["preset_cool"] = "Kühl",
         ["preset_vibrant"] = "Lebendig",
@@ -93,15 +124,35 @@ local translations = {
         ["vignette_amount"] = "Stärke",
         ["vignette_radius"] = "Radius",
         ["vignette_feather"] = "Weichzeichnung",
-        ["film_grain"] = "Filmkörnung",
+        ["film_grain"] = "Filmkorn",
         ["grain_amount"] = "Stärke",
         ["grain_size"] = "Körnungsgröße",
         ["time_seed"] = "Zeit-Seed",
-        ["user_presets"] = "Benutzerdefinierte Voreinstellungen",
-        ["preset_name"] = "Name der Voreinstellung",
-        ["save_preset"] = "Voreinstellung speichern",
-        ["load_preset"] = "Voreinstellung laden",
-        ["delete_preset"] = "Voreinstellung löschen",
+        ["select_preset"] = "Voreinstellung auswählen",
+        ["neutral"] = "Neutral",
+        ["warm"] = "Warm",
+        ["cool"] = "Kühl",
+        ["contrast_boost"] = "Kontrast-Boost",
+        ["contrast_reduce"] = "Kontrast-Reduzierung",
+        ["bright"] = "Hell",
+        ["dark"] = "Dunkel",
+        ["vintage"] = "Vintage",
+        ["bw"] = "Schwarz-Weiß",
+        ["bw_high_contrast"] = "S/W Hochkontrast",
+        ["sepia"] = "Sepia",
+        ["filmic"] = "Filmisch",
+        ["cinematic"] = "Kinematisch",
+        ["dramatic"] = "Dramatisch",
+        ["vibrant"] = "Lebendig",
+        ["muted"] = "Gedämpft",
+        ["warm_contrast"] = "Warmer Kontrast",
+        ["cool_contrast"] = "Kühler Kontrast",
+        ["shadows_blue"] = "Schatten Blau",
+        ["shadows_green"] = "Schatten Grün",
+        ["highlights_warm"] = "Lichter Warm",
+        ["sunset"] = "Sonnenuntergang",
+        ["moonlight"] = "Mondlicht",
+        ["vivid_warm"] = "Lebendig Warm",
         ["color_wheels"] = "Farbbalance",
         ["shadows_color_r"] = "Schatten Rot",
         ["shadows_color_g"] = "Schatten Grün",
@@ -111,7 +162,11 @@ local translations = {
         ["midtones_color_b"] = "Mitteltöne Blau",
         ["highlights_color_r"] = "Lichter Rot",
         ["highlights_color_g"] = "Lichter Grün",
-        ["highlights_color_b"] = "Lichter Blau"
+        ["highlights_color_b"] = "Lichter Blau",
+        ["basic_presets"] = "--- GRUNDLEGENDE VOREINSTELLUNGEN ---",
+        ["style_presets"] = "--- STIL-VOREINSTELLUNGEN ---",
+        ["color_mood_presets"] = "--- FARBSTIMMUNG-VOREINSTELLUNGEN ---",
+        ["era_presets"] = "--- ÄRA-VOREINSTELLUNGEN ---"
     }
 }
 
@@ -228,20 +283,17 @@ float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float
 }
 
 // Film Grain anwenden
+
 float3 apply_film_grain(float3 color, float2 uv, float amount, float grain_size, float seed) {
-    // Einfaches Perlin-Noise für Körnung
-    float2 coords = uv * grain_size;
-    float x = (coords.x + 4.0) * (coords.y + 4.0) * (seed * 10.0 + 10.0);
-    float random = frac(sin(x) * 43758.5453);
-    
-    // Rauscheffekt berechnen
-    float grain = random * 2.0 - 1.0;
+    if (amount == 0.0) return color;
+    float2 coord = uv * grain_size;
+    float noise = frac(sin(dot(coord, float2(12.9898, 78.233))) * 43758.5453);
+    float grain = noise * 2.0 - 1.0;
     float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
-    
-    float grain_amount = amount * (0.5 + luma * 0.5); // In dunkleren Bildbereichen weniger Körnung
-    
-    return lerp(color, color * (0.9 + grain * 0.2), grain_amount);
+    float grain_amt = amount * (0.5 + luma * 0.5);
+    return lerp(color, color * (0.9 + grain * 0.2), grain_amt);
 }
+
 
 // Berechnet die Gewichtung für die verschiedenen Tonwertbereiche
 float3 calculate_weights(float luma) {
@@ -353,86 +405,164 @@ function set_shader_params(data)
     
     -- Alle Parameter setzen
     if data.params.exposure then 
-        obs.gs_effect_set_float(data.params.exposure, data.exposure)
+        if data.last_exposure ~= data.exposure then
+            obs.gs_effect_set_float(data.params.exposure, data.exposure)
+            data.last_exposure = data.exposure
+        end
     end
     if data.params.contrast then 
-        obs.gs_effect_set_float(data.params.contrast, data.contrast)
+        if data.last_contrast ~= data.contrast then
+            obs.gs_effect_set_float(data.params.contrast, data.contrast)
+            data.last_contrast = data.contrast
+        end
     end
     if data.params.brightness then 
-        obs.gs_effect_set_float(data.params.brightness, data.brightness)
+        if data.last_brightness ~= data.brightness then
+            obs.gs_effect_set_float(data.params.brightness, data.brightness)
+            data.last_brightness = data.brightness
+        end
     end
     if data.params.highlights then 
-        obs.gs_effect_set_float(data.params.highlights, data.highlights)
+        if data.last_highlights ~= data.highlights then
+            obs.gs_effect_set_float(data.params.highlights, data.highlights)
+            data.last_highlights = data.highlights
+        end
     end
     if data.params.shadows then 
-        obs.gs_effect_set_float(data.params.shadows, data.shadows)
+        if data.last_shadows ~= data.shadows then
+            obs.gs_effect_set_float(data.params.shadows, data.shadows)
+            data.last_shadows = data.shadows
+        end
     end
     if data.params.whites then 
-        obs.gs_effect_set_float(data.params.whites, data.whites)
+        if data.last_whites ~= data.whites then
+            obs.gs_effect_set_float(data.params.whites, data.whites)
+            data.last_whites = data.whites
+        end
     end
     if data.params.blacks then 
-        obs.gs_effect_set_float(data.params.blacks, data.blacks)
+        if data.last_blacks ~= data.blacks then
+            obs.gs_effect_set_float(data.params.blacks, data.blacks)
+            data.last_blacks = data.blacks
+        end
     end
     if data.params.temperature then 
-        obs.gs_effect_set_float(data.params.temperature, data.temperature)
+        if data.last_temperature ~= data.temperature then
+            obs.gs_effect_set_float(data.params.temperature, data.temperature)
+            data.last_temperature = data.temperature
+        end
     end
     if data.params.tint then 
-        obs.gs_effect_set_float(data.params.tint, data.tint)
+        if data.last_tint ~= data.tint then
+            obs.gs_effect_set_float(data.params.tint, data.tint)
+            data.last_tint = data.tint
+        end
     end
     if data.params.saturation then 
-        obs.gs_effect_set_float(data.params.saturation, data.saturation)
+        if data.last_saturation ~= data.saturation then
+            obs.gs_effect_set_float(data.params.saturation, data.saturation)
+            data.last_saturation = data.saturation
+        end
     end
     if data.params.vibrance then 
-        obs.gs_effect_set_float(data.params.vibrance, data.vibrance)
+        if data.last_vibrance ~= data.vibrance then
+            obs.gs_effect_set_float(data.params.vibrance, data.vibrance)
+            data.last_vibrance = data.vibrance
+        end
     end
     if data.params.vignette_amount then 
-        obs.gs_effect_set_float(data.params.vignette_amount, data.vignette_amount)
+        if data.last_vignette_amount ~= data.vignette_amount then
+            obs.gs_effect_set_float(data.params.vignette_amount, data.vignette_amount)
+            data.last_vignette_amount = data.vignette_amount
+        end
     end
     if data.params.vignette_radius then 
-        obs.gs_effect_set_float(data.params.vignette_radius, data.vignette_radius)
+        if data.last_vignette_radius ~= data.vignette_radius then
+            obs.gs_effect_set_float(data.params.vignette_radius, data.vignette_radius)
+            data.last_vignette_radius = data.vignette_radius
+        end
     end
     if data.params.vignette_feather then 
-        obs.gs_effect_set_float(data.params.vignette_feather, data.vignette_feather)
+        if data.last_vignette_feather ~= data.vignette_feather then
+            obs.gs_effect_set_float(data.params.vignette_feather, data.vignette_feather)
+            data.last_vignette_feather = data.vignette_feather
+        end
     end
     if data.params.grain_amount then 
-        obs.gs_effect_set_float(data.params.grain_amount, data.grain_amount)
+        if data.last_grain_amount ~= data.grain_amount then
+            obs.gs_effect_set_float(data.params.grain_amount, data.grain_amount)
+            data.last_grain_amount = data.grain_amount
+        end
     end
     if data.params.grain_size then 
-        obs.gs_effect_set_float(data.params.grain_size, data.grain_size)
+        if data.last_grain_size ~= data.grain_size then
+            obs.gs_effect_set_float(data.params.grain_size, data.grain_size)
+            data.last_grain_size = data.grain_size
+        end
     end
     if data.params.time_seed then 
-        obs.gs_effect_set_float(data.params.time_seed, data.time_seed)
+        if data.last_time_seed ~= data.time_seed then
+            obs.gs_effect_set_float(data.params.time_seed, data.time_seed)
+            data.last_time_seed = data.time_seed
+        end
     end
     
     -- Farbrad-Parameter setzen (nur wenn sie existieren)
     if data.params.shadows_color_r and data.shadows_color_r ~= nil then 
-        obs.gs_effect_set_float(data.params.shadows_color_r, data.shadows_color_r)
+        if data.last_shadows_color_r ~= data.shadows_color_r then
+            obs.gs_effect_set_float(data.params.shadows_color_r, data.shadows_color_r)
+            data.last_shadows_color_r = data.shadows_color_r
+        end
     end
     if data.params.shadows_color_g and data.shadows_color_g ~= nil then 
-        obs.gs_effect_set_float(data.params.shadows_color_g, data.shadows_color_g)
+        if data.last_shadows_color_g ~= data.shadows_color_g then
+            obs.gs_effect_set_float(data.params.shadows_color_g, data.shadows_color_g)
+            data.last_shadows_color_g = data.shadows_color_g
+        end
     end
     if data.params.shadows_color_b and data.shadows_color_b ~= nil then 
-        obs.gs_effect_set_float(data.params.shadows_color_b, data.shadows_color_b)
+        if data.last_shadows_color_b ~= data.shadows_color_b then
+            obs.gs_effect_set_float(data.params.shadows_color_b, data.shadows_color_b)
+            data.last_shadows_color_b = data.shadows_color_b
+        end
     end
     
     if data.params.midtones_color_r and data.midtones_color_r ~= nil then 
-        obs.gs_effect_set_float(data.params.midtones_color_r, data.midtones_color_r)
+        if data.last_midtones_color_r ~= data.midtones_color_r then
+            obs.gs_effect_set_float(data.params.midtones_color_r, data.midtones_color_r)
+            data.last_midtones_color_r = data.midtones_color_r
+        end
     end
     if data.params.midtones_color_g and data.midtones_color_g ~= nil then 
-        obs.gs_effect_set_float(data.params.midtones_color_g, data.midtones_color_g)
+        if data.last_midtones_color_g ~= data.midtones_color_g then
+            obs.gs_effect_set_float(data.params.midtones_color_g, data.midtones_color_g)
+            data.last_midtones_color_g = data.midtones_color_g
+        end
     end
     if data.params.midtones_color_b and data.midtones_color_b ~= nil then 
-        obs.gs_effect_set_float(data.params.midtones_color_b, data.midtones_color_b)
+        if data.last_midtones_color_b ~= data.midtones_color_b then
+            obs.gs_effect_set_float(data.params.midtones_color_b, data.midtones_color_b)
+            data.last_midtones_color_b = data.midtones_color_b
+        end
     end
     
     if data.params.highlights_color_r and data.highlights_color_r ~= nil then 
-        obs.gs_effect_set_float(data.params.highlights_color_r, data.highlights_color_r)
+        if data.last_highlights_color_r ~= data.highlights_color_r then
+            obs.gs_effect_set_float(data.params.highlights_color_r, data.highlights_color_r)
+            data.last_highlights_color_r = data.highlights_color_r
+        end
     end
     if data.params.highlights_color_g and data.highlights_color_g ~= nil then 
-        obs.gs_effect_set_float(data.params.highlights_color_g, data.highlights_color_g)
+        if data.last_highlights_color_g ~= data.highlights_color_g then
+            obs.gs_effect_set_float(data.params.highlights_color_g, data.highlights_color_g)
+            data.last_highlights_color_g = data.highlights_color_g
+        end
     end
     if data.params.highlights_color_b and data.highlights_color_b ~= nil then 
-        obs.gs_effect_set_float(data.params.highlights_color_b, data.highlights_color_b)
+        if data.last_highlights_color_b ~= data.highlights_color_b then
+            obs.gs_effect_set_float(data.params.highlights_color_b, data.highlights_color_b)
+            data.last_highlights_color_b = data.highlights_color_b
+        end
     end
     
     -- Nur für die Preview-Textur explizit setzen
@@ -508,596 +638,295 @@ source_info.video_tick = function(data, seconds)
     set_render_size(data)
 end
 
--- Hilfsfunktion für Voreinstellungen
+-- Hilfsfunktionen für die vordefinierten Presets
 local function apply_preset(data, preset_type)
-    log_debug("Preset wird angewendet: " .. preset_type)
+    -- Validierung der Eingabeparameter
+    if not data then
+        log_debug("FEHLER: apply_preset wurde mit ungültigem data-Objekt aufgerufen")
+        return false
+    end
+    
+    -- Standard-Werte für alle Parameter
     local settings = obs.obs_data_create()
-    
-    -- Standardwerte setzen
-    obs.obs_data_set_double(settings, "exposure", 0.0)
-    obs.obs_data_set_double(settings, "contrast", 0.0)
-    obs.obs_data_set_double(settings, "brightness", 0.0)
-    obs.obs_data_set_double(settings, "highlights", 0.0)
-    obs.obs_data_set_double(settings, "shadows", 0.0)
-    obs.obs_data_set_double(settings, "whites", 0.0)
-    obs.obs_data_set_double(settings, "blacks", 0.0)
-    obs.obs_data_set_double(settings, "temperature", 0.0)
-    obs.obs_data_set_double(settings, "tint", 0.0)
-    obs.obs_data_set_double(settings, "saturation", 0.0)
-    obs.obs_data_set_double(settings, "vibrance", 0.0)
-    obs.obs_data_set_double(settings, "vignette_amount", 0.0)
-    obs.obs_data_set_double(settings, "vignette_radius", 0.5)
-    obs.obs_data_set_double(settings, "vignette_feather", 0.1)
-    obs.obs_data_set_double(settings, "grain_amount", 0.0)
-    obs.obs_data_set_double(settings, "grain_size", 10.0)
-    obs.obs_data_set_double(settings, "time_seed", 0.0)
-    
-    -- Je nach ausgewählter Voreinstellung die Parameter setzen
-    if preset_type == "neutral" then
-        -- Neutral - Alle Werte auf 0 zurücksetzen (oben bereits geschehen)
-    elseif preset_type == "cinematic" then
-        -- Filmischer Look
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "warm" then
-        -- Warmer Look
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-    elseif preset_type == "cool" then
-        -- Kühler Look
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-    elseif preset_type == "vibrant" then
-        -- Lebendiger Look
-        obs.obs_data_set_double(settings, "contrast", 0.15)
-        obs.obs_data_set_double(settings, "saturation", 0.2)
-        obs.obs_data_set_double(settings, "vibrance", 0.3)
-        obs.obs_data_set_double(settings, "highlights", 0.05)
-    elseif preset_type == "teal_orange" then
-        -- Teal & Orange
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "vintage_film" then
-        -- Vintage Film
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "dramatic" then
-        -- Dramatic Contrast
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "bleach_bypass" then
-        -- Bleach Bypass
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "moody_blue" then
-        -- Moody Blue
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "horror" then
-        -- Horror Tone
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "warm_portrait" then
-        -- Warm Portrait
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "soft_light" then
-        -- Soft Light
-        obs.obs_data_set_double(settings, "contrast", -0.1)
-        obs.obs_data_set_double(settings, "highlights", 0.1)
-        obs.obs_data_set_double(settings, "shadows", -0.1)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.1)
-        obs.obs_data_set_double(settings, "grain_amount", 0.05)
-    elseif preset_type == "retro_80s" then
-        -- 80s Retro
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "vhs_90s" then
-        -- 90s VHS
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "film_70s" then
-        -- 70s Film
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "sepia" then
-        -- Sepia Tone
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "bw" then
-        -- Black & White
-        obs.obs_data_set_double(settings, "saturation", -1.0)
-    elseif preset_type == "faded" then
-        -- Faded Shadows
-        obs.obs_data_set_double(settings, "contrast", -0.1)
-        obs.obs_data_set_double(settings, "highlights", 0.1)
-        obs.obs_data_set_double(settings, "shadows", -0.1)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.1)
-        obs.obs_data_set_double(settings, "grain_amount", 0.05)
-    elseif preset_type == "cross_process" then
-        -- Cross Process
-        obs.obs_data_set_double(settings, "contrast", 0.1)
-        obs.obs_data_set_double(settings, "highlights", -0.1)
-        obs.obs_data_set_double(settings, "shadows", 0.15)
-        obs.obs_data_set_double(settings, "temperature", 0.1)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "day_for_night" then
-        -- Day For Night
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "night_vision" then
-        -- Night Enhancer
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    elseif preset_type == "sunset" then
-        -- Sunset Glow
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "forest" then
-        -- Forest Green
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "desert" then
-        -- Desert Heat
-        obs.obs_data_set_double(settings, "temperature", 0.2)
-        obs.obs_data_set_double(settings, "tint", -0.05)
-        obs.obs_data_set_double(settings, "saturation", 0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", -0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "arctic" then
-        -- Arctic Chill
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "shadows_color_r", -0.1)
-        obs.obs_data_set_double(settings, "shadows_color_g", -0.05)
-        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
-        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
-    elseif preset_type == "cyberpunk" then
-        -- Cyberpunk
-        obs.obs_data_set_double(settings, "contrast", 0.2)
-        obs.obs_data_set_double(settings, "highlights", -0.2)
-        obs.obs_data_set_double(settings, "shadows", 0.3)
-        obs.obs_data_set_double(settings, "temperature", -0.2)
-        obs.obs_data_set_double(settings, "tint", 0.05)
-        obs.obs_data_set_double(settings, "saturation", -0.05)
-        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.1)
-    end
-    
-    source_info.update(data, settings)
-    obs.obs_source_update(data.source, settings)
-    obs.obs_data_release(settings)
-    
-    log_debug("Preset erfolgreich angewendet: " .. preset_type)
-    return true
-end
-
--- Hilfsfunktionen für benutzerdefinierte Presets
-local function get_preset_directory()
-    local path = script_path() .. "presets/"
-    log_debug("Preset-Verzeichnis: " .. path)
-    return path
-end
-
-local function ensure_preset_directory()
-    local preset_dir = get_preset_directory()
-    local command = 'if not exist "' .. preset_dir .. '" mkdir "' .. preset_dir .. '"'
-    log_debug("Führe aus: " .. command)
-    os.execute(command)
-    
-    -- Verifizieren, dass das Verzeichnis wirklich existiert
-    local test_file = preset_dir .. "test.txt"
-    local file = io.open(test_file, "w")
-    if file then
-        file:write("Test")
-        file:close()
-        os.remove(test_file)
-        log_debug("Preset-Verzeichnis wurde erfolgreich erstellt und ist beschreibbar")
-    else
-        log_debug("WARNUNG: Konnte keine Datei im Preset-Verzeichnis erstellen!")
-    end
-    
-    return preset_dir
-end
-
-local function save_user_preset(data, preset_name)
-    if not data or not preset_name or preset_name == "" then
+    if not settings then
+        log_debug("FEHLER: Konnte Settings-Objekt nicht erstellen")
         return false
     end
     
-    -- Stelle sicher, dass das Verzeichnis existiert
-    local preset_dir = ensure_preset_directory()
-    local preset_file = preset_dir .. preset_name .. ".json"
-    
-    local preset = obs.obs_data_create()
-    
-    -- Alle aktuellen Parameter speichern
-    obs.obs_data_set_double(preset, "exposure", data.exposure)
-    obs.obs_data_set_double(preset, "contrast", data.contrast)
-    obs.obs_data_set_double(preset, "brightness", data.brightness)
-    obs.obs_data_set_double(preset, "highlights", data.highlights)
-    obs.obs_data_set_double(preset, "shadows", data.shadows)
-    obs.obs_data_set_double(preset, "whites", data.whites)
-    obs.obs_data_set_double(preset, "blacks", data.blacks)
-    obs.obs_data_set_double(preset, "temperature", data.temperature)
-    obs.obs_data_set_double(preset, "tint", data.tint)
-    obs.obs_data_set_double(preset, "saturation", data.saturation)
-    obs.obs_data_set_double(preset, "vibrance", data.vibrance)
-    obs.obs_data_set_double(preset, "vignette_amount", data.vignette_amount)
-    obs.obs_data_set_double(preset, "vignette_radius", data.vignette_radius)
-    obs.obs_data_set_double(preset, "vignette_feather", data.vignette_feather)
-    obs.obs_data_set_double(preset, "grain_amount", data.grain_amount)
-    obs.obs_data_set_double(preset, "grain_size", data.grain_size)
-    
-    -- Preset in Datei speichern
-    local success = obs.obs_data_save_json(preset, preset_file)
-    obs.obs_data_release(preset)
-    
-    if success then
-        log_debug("Preset erfolgreich gespeichert: " .. preset_name)
-        log_debug("Speicherort: " .. preset_file)
-        return true
-    else
-        log_debug("Fehler beim Speichern des Presets: " .. preset_name)
-        return false
-    end
-end
-
-local function load_user_preset(data, preset_name)
-    if not data or not preset_name or preset_name == "" then
-        return false
-    end
-    
-    local preset_file = get_preset_directory() .. preset_name .. ".json"
-    local preset = obs.obs_data_create_from_json_file(preset_file)
-    
-    if not preset then
-        log_debug("Preset konnte nicht geladen werden: " .. preset_name)
-        return false
-    end
-    
-    -- Einstellungen für die Anwendung vorbereiten
-    local settings = obs.obs_data_create()
-    
-    -- Alle Parameter aus dem Preset übernehmen
-    obs.obs_data_set_double(settings, "exposure", obs.obs_data_get_double(preset, "exposure"))
-    obs.obs_data_set_double(settings, "contrast", obs.obs_data_get_double(preset, "contrast"))
-    obs.obs_data_set_double(settings, "brightness", obs.obs_data_get_double(preset, "brightness"))
-    obs.obs_data_set_double(settings, "highlights", obs.obs_data_get_double(preset, "highlights"))
-    obs.obs_data_set_double(settings, "shadows", obs.obs_data_get_double(preset, "shadows"))
-    obs.obs_data_set_double(settings, "whites", obs.obs_data_get_double(preset, "whites"))
-    obs.obs_data_set_double(settings, "blacks", obs.obs_data_get_double(preset, "blacks"))
-    obs.obs_data_set_double(settings, "temperature", obs.obs_data_get_double(preset, "temperature"))
-    obs.obs_data_set_double(settings, "tint", obs.obs_data_get_double(preset, "tint"))
-    obs.obs_data_set_double(settings, "saturation", obs.obs_data_get_double(preset, "saturation"))
-    obs.obs_data_set_double(settings, "vibrance", obs.obs_data_get_double(preset, "vibrance"))
-    obs.obs_data_set_double(settings, "vignette_amount", obs.obs_data_get_double(preset, "vignette_amount"))
-    obs.obs_data_set_double(settings, "vignette_radius", obs.obs_data_get_double(preset, "vignette_radius"))
-    obs.obs_data_set_double(settings, "vignette_feather", obs.obs_data_get_double(preset, "vignette_feather"))
-    obs.obs_data_set_double(settings, "grain_amount", obs.obs_data_get_double(preset, "grain_amount"))
-    obs.obs_data_set_double(settings, "grain_size", obs.obs_data_get_double(preset, "grain_size"))
-    
-    -- Preset auf den Filter anwenden
-    source_info.update(data, settings)
-    obs.obs_source_update(data.source, settings)
-    
-    obs.obs_data_release(preset)
-    obs.obs_data_release(settings)
-    
-    log_debug("Preset erfolgreich geladen: " .. preset_name)
-    return true
-end
-
-local function list_user_presets()
-    local preset_dir = get_preset_directory()
-    local presets = {}
-    
-    -- In Windows überprüfen wir das Verzeichnis und suchen nach .json-Dateien
-    local handle = io.popen('dir "' .. preset_dir .. '*.json" /b 2>nul')
-    if handle then
-        for file in handle:lines() do
-            -- Entferne .json-Endung
-            local preset_name = file:match("(.+)%.json$")
-            if preset_name then
-                table.insert(presets, preset_name)
-                log_debug("Gefundenes Preset: " .. preset_name)
-            end
+    -- Aktuelle Werte aus data in settings kopieren, um eine korrekte Aktualisierung zu gewährleisten
+    for key, value in pairs(data) do
+        if type(value) == "number" then
+            obs.obs_data_set_double(settings, key, value)
+        elseif type(value) == "string" then
+            obs.obs_data_set_string(settings, key, value)
+        elseif type(value) == "boolean" then
+            obs.obs_data_set_bool(settings, key, value)
         end
-        handle:close()
+    end
+    
+    -- Preset-spezifische Einstellungen
+    if preset_type == "neutral" then
+        -- Neutrales Preset (Standard-Werte)
+        obs.obs_data_set_double(settings, "exposure", 0.0)
+        obs.obs_data_set_double(settings, "contrast", 0.0)
+        obs.obs_data_set_double(settings, "brightness", 0.0)
+        obs.obs_data_set_double(settings, "highlights", 0.0)
+        obs.obs_data_set_double(settings, "shadows", 0.0)
+        obs.obs_data_set_double(settings, "whites", 0.0)
+        obs.obs_data_set_double(settings, "blacks", 0.0)
+        obs.obs_data_set_double(settings, "temperature", 0.0)
+        obs.obs_data_set_double(settings, "tint", 0.0)
+        obs.obs_data_set_double(settings, "saturation", 0.0)
+        obs.obs_data_set_double(settings, "vibrance", 0.0)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.0)
+        obs.obs_data_set_double(settings, "grain_amount", 0.0)
+        obs.obs_data_set_double(settings, "shadows_color_r", 0.0)
+        obs.obs_data_set_double(settings, "shadows_color_g", 0.0)
+        obs.obs_data_set_double(settings, "shadows_color_b", 0.0)
+        obs.obs_data_set_double(settings, "midtones_color_r", 0.0)
+        obs.obs_data_set_double(settings, "midtones_color_g", 0.0)
+        obs.obs_data_set_double(settings, "midtones_color_b", 0.0)
+        obs.obs_data_set_double(settings, "highlights_color_r", 0.0)
+        obs.obs_data_set_double(settings, "highlights_color_g", 0.0)
+        obs.obs_data_set_double(settings, "highlights_color_b", 0.0)
+    elseif preset_type == "warm" then
+        obs.obs_data_set_double(settings, "temperature", 0.2)
+        obs.obs_data_set_double(settings, "tint", -0.05)
+    elseif preset_type == "cool" then
+        obs.obs_data_set_double(settings, "temperature", -0.2)
+        obs.obs_data_set_double(settings, "tint", 0.05)
+    elseif preset_type == "contrast_boost" then
+        obs.obs_data_set_double(settings, "contrast", 0.15)
+        obs.obs_data_set_double(settings, "highlights", 0.1)
+        obs.obs_data_set_double(settings, "shadows", -0.1)
+        obs.obs_data_set_double(settings, "blacks", -0.05)
+    elseif preset_type == "contrast_reduce" then
+        obs.obs_data_set_double(settings, "contrast", -0.1)
+        obs.obs_data_set_double(settings, "highlights", -0.05)
+        obs.obs_data_set_double(settings, "shadows", 0.05)
+    elseif preset_type == "bright" then
+        obs.obs_data_set_double(settings, "exposure", 0.1)
+        obs.obs_data_set_double(settings, "highlights", 0.05)
+        obs.obs_data_set_double(settings, "shadows", 0.1)
+    elseif preset_type == "dark" then
+        obs.obs_data_set_double(settings, "exposure", -0.1)
+        obs.obs_data_set_double(settings, "shadows", -0.05)
+        obs.obs_data_set_double(settings, "blacks", -0.05)
+    elseif preset_type == "vintage" then
+        obs.obs_data_set_double(settings, "temperature", 0.15)
+        obs.obs_data_set_double(settings, "contrast", 0.1)
+        obs.obs_data_set_double(settings, "saturation", -0.15)
+        obs.obs_data_set_double(settings, "shadows_color_r", 0.05)
+        obs.obs_data_set_double(settings, "shadows_color_b", -0.1)
+        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
+        obs.obs_data_set_double(settings, "highlights_color_b", -0.05)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.2)
+        obs.obs_data_set_double(settings, "grain_amount", 0.2)
+    elseif preset_type == "bw" then
+        obs.obs_data_set_double(settings, "saturation", -1.0)
+        obs.obs_data_set_double(settings, "contrast", 0.1)
+        obs.obs_data_set_double(settings, "highlights", 0.05)
+        obs.obs_data_set_double(settings, "shadows", -0.05)
+        obs.obs_data_set_double(settings, "blacks", -0.05)
+    elseif preset_type == "bw_high_contrast" then
+        obs.obs_data_set_double(settings, "saturation", -1.0)
+        obs.obs_data_set_double(settings, "contrast", 0.2)
+        obs.obs_data_set_double(settings, "highlights", 0.1)
+        obs.obs_data_set_double(settings, "shadows", -0.1)
+        obs.obs_data_set_double(settings, "blacks", -0.1)
+    elseif preset_type == "sepia" then
+        obs.obs_data_set_double(settings, "saturation", -0.8)
+        obs.obs_data_set_double(settings, "temperature", 0.3)
+        obs.obs_data_set_double(settings, "contrast", 0.05)
+        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
+        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        obs.obs_data_set_double(settings, "shadows_color_r", 0.1)
+        obs.obs_data_set_double(settings, "shadows_color_g", 0.05)
+    elseif preset_type == "filmic" then
+        obs.obs_data_set_double(settings, "contrast", 0.15)
+        obs.obs_data_set_double(settings, "highlights", -0.05)
+        obs.obs_data_set_double(settings, "shadows", 0.05)
+        obs.obs_data_set_double(settings, "saturation", -0.05)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.1)
+        obs.obs_data_set_double(settings, "vignette_feather", 0.7)
+    elseif preset_type == "cinematic" then
+        obs.obs_data_set_double(settings, "contrast", 0.2)
+        obs.obs_data_set_double(settings, "highlights", -0.1)
+        obs.obs_data_set_double(settings, "shadows", 0.05)
+        obs.obs_data_set_double(settings, "saturation", -0.1)
+        obs.obs_data_set_double(settings, "midtones_color_b", 0.05)
+        obs.obs_data_set_double(settings, "shadows_color_b", 0.1)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.15)
+        obs.obs_data_set_double(settings, "vignette_feather", 0.8)
+    elseif preset_type == "dramatic" then
+        obs.obs_data_set_double(settings, "contrast", 0.25)
+        obs.obs_data_set_double(settings, "highlights", -0.1)
+        obs.obs_data_set_double(settings, "shadows", -0.15)
+        obs.obs_data_set_double(settings, "blacks", -0.1)
+        obs.obs_data_set_double(settings, "saturation", 0.1)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.25)
+        obs.obs_data_set_double(settings, "vignette_radius", 0.7)
+    elseif preset_type == "vibrant" then
+        obs.obs_data_set_double(settings, "saturation", 0.2)
+        obs.obs_data_set_double(settings, "vibrance", 0.15)
+        obs.obs_data_set_double(settings, "contrast", 0.1)
+        obs.obs_data_set_double(settings, "highlights", 0.05)
+    elseif preset_type == "muted" then
+        obs.obs_data_set_double(settings, "saturation", -0.15)
+        obs.obs_data_set_double(settings, "vibrance", -0.1)
+        obs.obs_data_set_double(settings, "contrast", -0.05)
+    elseif preset_type == "warm_contrast" then
+        obs.obs_data_set_double(settings, "temperature", 0.15)
+        obs.obs_data_set_double(settings, "contrast", 0.15)
+        obs.obs_data_set_double(settings, "highlights", 0.05)
+        obs.obs_data_set_double(settings, "shadows", -0.05)
+    elseif preset_type == "cool_contrast" then
+        obs.obs_data_set_double(settings, "temperature", -0.15)
+        obs.obs_data_set_double(settings, "contrast", 0.15)
+        obs.obs_data_set_double(settings, "highlights", 0.05)
+        obs.obs_data_set_double(settings, "shadows", -0.05)
+    elseif preset_type == "shadows_blue" then
+        obs.obs_data_set_double(settings, "shadows_color_b", 0.15)
+    elseif preset_type == "shadows_green" then
+        obs.obs_data_set_double(settings, "shadows_color_g", 0.15)
+    elseif preset_type == "highlights_warm" then
+        obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
+        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+    elseif preset_type == "sunset" then
+        obs.obs_data_set_double(settings, "temperature", 0.2)
+        obs.obs_data_set_double(settings, "highlights_color_r", 0.15)
+        obs.obs_data_set_double(settings, "highlights_color_g", 0.05)
+        obs.obs_data_set_double(settings, "shadows_color_b", 0.1)
+    elseif preset_type == "moonlight" then
+        obs.obs_data_set_double(settings, "temperature", -0.3)
+        obs.obs_data_set_double(settings, "exposure", -0.1)
+        obs.obs_data_set_double(settings, "highlights_color_b", 0.1)
+        obs.obs_data_set_double(settings, "midtones_color_b", 0.05)
+        obs.obs_data_set_double(settings, "shadows", -0.1)
+        obs.obs_data_set_double(settings, "contrast", 0.1)
+    elseif preset_type == "vivid_warm" then
+        obs.obs_data_set_double(settings, "temperature", 0.15)
+        obs.obs_data_set_double(settings, "saturation", 0.15)
+        obs.obs_data_set_double(settings, "vibrance", 0.1)
+        obs.obs_data_set_double(settings, "contrast", 0.1)
+    end
+    
+    -- Aktualisiere den Filter mit den neuen Einstellungen
+    if data.source then
+        log_debug("Preset " .. preset_type .. " wird angewendet")
+        source_info.update(data, settings)
+        obs.obs_source_update(data.source, settings)
+        log_debug("Preset " .. preset_type .. " erfolgreich angewendet")
     else
-        log_debug("Konnte das Presets-Verzeichnis nicht durchsuchen")
+        log_debug("FEHLER: data.source ist nicht definiert")
     end
     
-    -- Debug-Ausgabe der gefundenen Presets
-    log_debug("Anzahl gefundener Presets: " .. #presets)
-    return presets
-end
-
-local function delete_user_preset(preset_name)
-    if not preset_name or preset_name == "" then
-        return false
-    end
-    
-    local preset_file = get_preset_directory() .. preset_name .. ".json"
-    local success = os.remove(preset_file)
-    
-    if success then
-        log_debug("Preset gelöscht: " .. preset_name)
-        return true
-    else
-        log_debug("Fehler beim Löschen des Presets: " .. preset_name)
-        return false
-    end
-end
-
--- Funktion, die den Presets-Dropdown mit vorhandenen Presets aktualisiert
-local function refresh_user_presets_dropdown(props)
-    if not props then return end
-    
-    local preset_list = obs.obs_properties_get(props, "user_preset_select")
-    if not preset_list then return end
-    
-    obs.obs_property_list_clear(preset_list)
-    
-    -- Vorhandene Presets auflisten
-    local presets = list_user_presets()
-    for _, preset_name in ipairs(presets) do
-        obs.obs_property_list_add_string(preset_list, preset_name, preset_name)
-    end
-end
-
--- Hinzufügen einer Update-Funktion für die UI, die aufgerufen wird, wenn der Benutzer ein Preset auswählt
-local function on_user_preset_modified(props, property, settings)
-    refresh_user_presets_dropdown(props)
+    obs.obs_data_release(settings)
     return true
 end
 
 -- UI für Eigenschaften
 source_info.get_properties = function(data)
     log_debug("get_properties wird aufgerufen")
+    
+    -- Prüfen, ob Daten vorhanden sind
+    if not data then 
+        log_debug("WARNUNG: data-Objekt in get_properties ist nil")
+    end
+    
     local props = obs.obs_properties_create()
     
-    -- Integrierte Presets
+    -- Presets
     local preset_group = obs.obs_properties_create()
     
-    local preset_list = obs.obs_properties_add_list(preset_group, "preset_select", _("presets"), obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
-    obs.obs_property_list_add_string(preset_list, _("preset_neutral"), "neutral")
+    -- Liste der Presets
+    local preset_list = obs.obs_properties_add_list(preset_group, "preset_select", _("select_preset"), 
+                                   obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    
+    -- Leere Option
+    obs.obs_property_list_add_string(preset_list, "", "")
     
     -- Grundlegende Presets
-    obs.obs_property_list_add_string(preset_list, _("preset_cinematic"), "cinematic")
-    obs.obs_property_list_add_string(preset_list, _("preset_warm"), "warm")
-    obs.obs_property_list_add_string(preset_list, _("preset_cool"), "cool")
-    obs.obs_property_list_add_string(preset_list, _("preset_vibrant"), "vibrant")
+    obs.obs_property_list_add_string(preset_list, _("basic_presets"), "separator_basic")
+    obs.obs_property_list_add_string(preset_list, _("neutral"), "neutral")
+    obs.obs_property_list_add_string(preset_list, _("warm"), "warm")
+    obs.obs_property_list_add_string(preset_list, _("cool"), "cool")
+    obs.obs_property_list_add_string(preset_list, _("bright"), "bright")
+    obs.obs_property_list_add_string(preset_list, _("dark"), "dark")
+    obs.obs_property_list_add_string(preset_list, _("contrast_boost"), "contrast_boost")
+    obs.obs_property_list_add_string(preset_list, _("contrast_reduce"), "contrast_reduce")
     
-    -- Erweiterte Stimmungs-Presets
-    obs.obs_property_list_add_string(preset_list, "--- MOOD PRESETS ---", "separator1")
-    obs.obs_property_list_add_string(preset_list, "Teal & Orange", "teal_orange")
-    obs.obs_property_list_add_string(preset_list, "Vintage Film", "vintage_film")
-    obs.obs_property_list_add_string(preset_list, "Dramatic Contrast", "dramatic")
-    obs.obs_property_list_add_string(preset_list, "Bleach Bypass", "bleach_bypass")
-    obs.obs_property_list_add_string(preset_list, "Moody Blue", "moody_blue")
-    obs.obs_property_list_add_string(preset_list, "Horror Tone", "horror")
-    obs.obs_property_list_add_string(preset_list, "Warm Portrait", "warm_portrait")
-    obs.obs_property_list_add_string(preset_list, "Soft Light", "soft_light")
+    -- Stil-Presets
+    obs.obs_property_list_add_string(preset_list, _("style_presets"), "separator_style")
+    obs.obs_property_list_add_string(preset_list, _("cinematic"), "cinematic")
+    obs.obs_property_list_add_string(preset_list, _("filmic"), "filmic")
+    obs.obs_property_list_add_string(preset_list, _("dramatic"), "dramatic")
+    obs.obs_property_list_add_string(preset_list, _("vibrant"), "vibrant")
+    obs.obs_property_list_add_string(preset_list, _("muted"), "muted")
+    obs.obs_property_list_add_string(preset_list, _("warm_contrast"), "warm_contrast")
+    obs.obs_property_list_add_string(preset_list, _("cool_contrast"), "cool_contrast")
+
+    -- Farbstimmung-Presets
+    obs.obs_property_list_add_string(preset_list, _("color_mood_presets"), "separator_color_mood")
+    obs.obs_property_list_add_string(preset_list, _("highlights_warm"), "highlights_warm") 
+    obs.obs_property_list_add_string(preset_list, _("shadows_blue"), "shadows_blue")
+    obs.obs_property_list_add_string(preset_list, _("shadows_green"), "shadows_green")
+    obs.obs_property_list_add_string(preset_list, _("sunset"), "sunset")
+    obs.obs_property_list_add_string(preset_list, _("moonlight"), "moonlight")
+    obs.obs_property_list_add_string(preset_list, _("vivid_warm"), "vivid_warm")
     
-    -- Zeitperioden und Looks
-    obs.obs_property_list_add_string(preset_list, "--- ERA PRESETS ---", "separator2")
-    obs.obs_property_list_add_string(preset_list, "80s Retro", "retro_80s")
-    obs.obs_property_list_add_string(preset_list, "90s VHS", "vhs_90s")
-    obs.obs_property_list_add_string(preset_list, "70s Film", "film_70s")
-    obs.obs_property_list_add_string(preset_list, "Sepia Tone", "sepia")
-    obs.obs_property_list_add_string(preset_list, "Black & White", "bw")
+    -- Ära-Presets
+    obs.obs_property_list_add_string(preset_list, _("era_presets"), "separator_era")
+    obs.obs_property_list_add_string(preset_list, _("vintage"), "vintage")
+    obs.obs_property_list_add_string(preset_list, _("bw"), "bw")
+    obs.obs_property_list_add_string(preset_list, _("bw_high_contrast"), "bw_high_contrast")
+    obs.obs_property_list_add_string(preset_list, _("sepia"), "sepia")
     
-    -- Farbtonkorrektur
-    obs.obs_property_list_add_string(preset_list, "--- COLOR STYLES ---", "separator3")
-    obs.obs_property_list_add_string(preset_list, "Faded Shadows", "faded")
-    obs.obs_property_list_add_string(preset_list, "Cross Process", "cross_process")
-    obs.obs_property_list_add_string(preset_list, "Day For Night", "day_for_night")
-    obs.obs_property_list_add_string(preset_list, "Night Enhancer", "night_vision")
-    obs.obs_property_list_add_string(preset_list, "Sunset Glow", "sunset")
-    obs.obs_property_list_add_string(preset_list, "Forest Green", "forest")
-    obs.obs_property_list_add_string(preset_list, "Desert Heat", "desert")
-    obs.obs_property_list_add_string(preset_list, "Arctic Chill", "arctic")
-    obs.obs_property_list_add_string(preset_list, "Cyberpunk", "cyberpunk")
-    
-    obs.obs_property_set_long_description(preset_list, "Wähle eine vordefinierte Einstellung aus, die dann mit dem 'Anwenden'-Knopf aktiviert wird.")
-    
-    -- Preset-Button zur Anwendung (kein auto-apply)
-    local apply_button = obs.obs_properties_add_button(preset_group, "apply_preset_button", _("apply_preset"), 
-        function(properties, property) 
-            if data ~= nil then
+    -- Button zum Anwenden des ausgewählten Presets
+    local apply_preset_button = obs.obs_properties_add_button(preset_group, "apply_preset_button", _("apply_preset"), 
+        function(properties, property)
+            if data then
                 local preset = obs.obs_data_get_string(data.settings, "preset_select")
                 if preset ~= "" then
-                    apply_preset(data, preset)
+                    log_debug("Starte Anwendung von Preset: " .. preset)
+                    -- Preset anwenden
+                    local success = apply_preset(data, preset)
+                    if success then
+                        log_debug("Preset erfolgreich angewendet, UI wird aktualisiert")
+                    else
+                        log_debug("FEHLER: Preset konnte nicht angewendet werden")
+                    end
+                    return true
+                else
+                    log_debug("Kein Preset ausgewählt")
                 end
+            else
+                log_debug("FEHLER: data-Objekt ist nil im Knopf-Callback")
             end
             return true
         end)
         
     obs.obs_properties_add_group(props, "std_presets", _("presets"), obs.OBS_GROUP_NORMAL, preset_group)
     
-    -- Benutzerdefinierte Presets
-    local user_preset_group = obs.obs_properties_create()
+    -- Belichtung und Kontrast
+    local exposure_group = obs.obs_properties_create()
     
-    -- User Preset Liste
-    local user_preset_list = obs.obs_properties_add_list(user_preset_group, "user_preset_select", _("user_presets"), 
-                                      obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    local prop_exposure = obs.obs_properties_add_float_slider(exposure_group, "exposure", _("exposure"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_exposure, "Gesamthelligkeit des Bildes. Positive Werte hellen das Bild auf, negative Werte dunkeln es ab.")
     
-    -- Vorhandene Presets laden
-    refresh_user_presets_dropdown(props)
+    local prop_contrast = obs.obs_properties_add_float_slider(exposure_group, "contrast", _("contrast"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_contrast, "Kontrast des Bildes. Positive Werte erhöhen den Kontrast, negative Werte verringern ihn.")
     
-    -- Name für neues Preset
-    local preset_name = obs.obs_properties_add_text(user_preset_group, "new_preset_name", _("new_preset_name"), 
-                                  obs.OBS_TEXT_DEFAULT)
-    
-    -- Buttons für Benutzerpresets
-    local save_button = obs.obs_properties_add_button(user_preset_group, "save_preset_button", _("save_preset"), 
-        function(properties, property)
-            if data ~= nil then
-                local name = obs.obs_data_get_string(data.settings, "new_preset_name")
-                if name ~= "" then
-                    save_user_preset(data, name)
-                    -- Liste nach dem Speichern aktualisieren
-                    refresh_user_presets_dropdown(props)
-                end
-            end
-            return true
-        end)
-    
-    local load_button = obs.obs_properties_add_button(user_preset_group, "load_preset_button", _("load_preset"), 
-        function(properties, property)
-            if data ~= nil then
-                local preset = obs.obs_data_get_string(data.settings, "user_preset_select")
-                if preset ~= "" then
-                    load_user_preset(data, preset)
-                end
-            end
-            return true
-        end)
-    
-    local delete_button = obs.obs_properties_add_button(user_preset_group, "delete_preset_button", _("delete_preset"), 
-        function(properties, property)
-            if data ~= nil then
-                local preset = obs.obs_data_get_string(data.settings, "user_preset_select")
-                if preset ~= "" then
-                    delete_user_preset(preset)
-                    -- Liste nach dem Löschen aktualisieren
-                    refresh_user_presets_dropdown(props)
-                end
-            end
-            return true
-        end)
-    
-    obs.obs_properties_add_group(props, "user_presets_group", _("user_presets_group"), obs.OBS_GROUP_NORMAL, user_preset_group)
-    
-    -- Grundlegende Korrekturen
-    local basic_group = obs.obs_properties_create()
-    
-    local prop_exposure = obs.obs_properties_add_float_slider(basic_group, "exposure", _("exposure"), -2.0, 2.0, 0.01)
-    obs.obs_property_set_long_description(prop_exposure, "Passt die Helligkeit des Bildes an (in Blendenstufen). Positive Werte machen das Bild heller, negative dunkler.")
-    
-    local prop_contrast = obs.obs_properties_add_float_slider(basic_group, "contrast", _("contrast"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_contrast, "Verstärkt oder reduziert den Unterschied zwischen hellen und dunklen Bildbereichen.")
-    
-    local prop_brightness = obs.obs_properties_add_float_slider(basic_group, "brightness", _("brightness"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_brightness, "Hebt oder senkt die allgemeine Bildhelligkeit, ohne die Dynamik zu beeinflussen.")
-    
-    local prop_highlights = obs.obs_properties_add_float_slider(basic_group, "highlights", _("highlights"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_highlights, "Passt die Helligkeit der hellsten Bildbereiche an. Negative Werte dämpfen Überbelichtungen.")
-    
-    local prop_shadows = obs.obs_properties_add_float_slider(basic_group, "shadows", _("shadows"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_shadows, "Passt die Helligkeit der dunkelsten Bildbereiche an. Positive Werte hellen Schatten auf.")
-    
-    local prop_whites = obs.obs_properties_add_float_slider(basic_group, "whites", _("whites"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_whites, "Bestimmt den Weißpunkt des Bildes. Höhere Werte verstärken helle Bereiche.")
-    
-    local prop_blacks = obs.obs_properties_add_float_slider(basic_group, "blacks", _("blacks"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_blacks, "Bestimmt den Schwarzpunkt des Bildes. Höhere Werte heben die dunklen Bereiche an.")
-    
-    obs.obs_properties_add_group(props, "basic", _("basic"), obs.OBS_GROUP_NORMAL, basic_group)
+    obs.obs_properties_add_group(props, "exposure", _("basic"), obs.OBS_GROUP_NORMAL, exposure_group)
     
     -- Weißabgleich
     local wb_group = obs.obs_properties_create()
     
     local prop_temperature = obs.obs_properties_add_float_slider(wb_group, "temperature", _("temperature"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_temperature, "Passt die Farbtemperatur des Bildes an. Positive Werte machen das Bild wärmer (gelblicher), negative kühler (bläulicher).")
+    obs.obs_property_set_long_description(prop_temperature, "Farbtemperatur des Bildes. Positive Werte machen das Bild wärmer, negative Werte kühler.")
     
     local prop_tint = obs.obs_properties_add_float_slider(wb_group, "tint", _("tint"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_tint, "Korrigiert den Grün-Magenta-Farbstich. Positive Werte fügen Grün hinzu, negative Magenta.")
+    obs.obs_property_set_long_description(prop_tint, "Farbton des Bildes. Positive Werte fügen Magenta hinzu, negative Grün.")
     
     obs.obs_properties_add_group(props, "wb", _("wb"), obs.OBS_GROUP_NORMAL, wb_group)
     
@@ -1105,10 +934,10 @@ source_info.get_properties = function(data)
     local color_group = obs.obs_properties_create()
     
     local prop_saturation = obs.obs_properties_add_float_slider(color_group, "saturation", _("saturation"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_saturation, "Verstärkt oder reduziert die Intensität aller Farben im Bild gleichmäßig.")
+    obs.obs_property_set_long_description(prop_saturation, "Sättigung des Bildes. Positive Werte erhöhen die Sättigung, negative Werte verringern sie.")
     
     local prop_vibrance = obs.obs_properties_add_float_slider(color_group, "vibrance", _("vibrance"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_vibrance, "Verstärkt gezielt die weniger gesättigten Farben und schont Hauttöne. Subtiler als Sättigung.")
+    obs.obs_property_set_long_description(prop_vibrance, "Lebendigkeit des Bildes. Positive Werte erhöhen die Lebendigkeit, negative Werte verringern sie.")
     
     obs.obs_properties_add_group(props, "color", _("color"), obs.OBS_GROUP_NORMAL, color_group)
     
@@ -1116,13 +945,13 @@ source_info.get_properties = function(data)
     local vignette_group = obs.obs_properties_create()
     
     local prop_vignette_amount = obs.obs_properties_add_float_slider(vignette_group, "vignette_amount", _("vignette_amount"), 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_vignette_amount, "Stärke des Vignette-Effekts (Abdunklung der Bildränder).")
+    obs.obs_property_set_long_description(prop_vignette_amount, "Stärke der Vignette. Positive Werte erhöhen die Vignette, negative Werte verringern sie.")
     
     local prop_vignette_radius = obs.obs_properties_add_float_slider(vignette_group, "vignette_radius", _("vignette_radius"), 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_vignette_radius, "Ausdehnung der Vignette. Kleine Werte betonen nur die Ecken, größere Werte beeinflussen mehr vom Bildrand.")
+    obs.obs_property_set_long_description(prop_vignette_radius, "Radius der Vignette. Positive Werte erhöhen den Radius, negative Werte verringern ihn.")
     
     local prop_vignette_feather = obs.obs_properties_add_float_slider(vignette_group, "vignette_feather", _("vignette_feather"), 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_vignette_feather, "Weichzeichnung der Vignette. Hohe Werte erzeugen einen sanften Übergang.")
+    obs.obs_property_set_long_description(prop_vignette_feather, "Weichzeichnung der Vignette. Positive Werte erhöhen die Weichzeichnung, negative Werte verringern sie.")
     
     obs.obs_properties_add_group(props, "vignette", _("vignette"), obs.OBS_GROUP_NORMAL, vignette_group)
     
@@ -1130,13 +959,13 @@ source_info.get_properties = function(data)
     local grain_group = obs.obs_properties_create()
     
     local prop_grain_amount = obs.obs_properties_add_float_slider(grain_group, "grain_amount", _("grain_amount"), 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_grain_amount, "Stärke des Filmkorn-Effekts.")
+    obs.obs_property_set_long_description(prop_grain_amount, "Stärke des Filmkorns. Positive Werte erhöhen das Filmkorn, negative Werte verringern es.")
     
     local prop_grain_size = obs.obs_properties_add_float_slider(grain_group, "grain_size", _("grain_size"), 1.0, 100.0, 1.0)
-    obs.obs_property_set_long_description(prop_grain_size, "Größe der Körnung. Höhere Werte erzeugen gröberes Korn.")
+    obs.obs_property_set_long_description(prop_grain_size, "Größe des Filmkorns. Positive Werte erhöhen die Größe, negative Werte verringern sie.")
     
     local prop_time_seed = obs.obs_properties_add_float_slider(grain_group, "time_seed", _("time_seed"), 0.0, 100.0, 1.0)
-    obs.obs_property_set_long_description(prop_time_seed, "Zufallswert für das Filmkorn. Ändern für unterschiedliche Kornmuster.")
+    obs.obs_property_set_long_description(prop_time_seed, "Zeit-Seed für das Filmkorn. Positive Werte ändern das Filmkorn-Muster.")
     
     obs.obs_properties_add_group(props, "film_grain", _("film_grain"), obs.OBS_GROUP_NORMAL, grain_group)
     
@@ -1144,31 +973,31 @@ source_info.get_properties = function(data)
     local color_wheels_group = obs.obs_properties_create()
     
     local prop_shadows_color_r = obs.obs_properties_add_float_slider(color_wheels_group, "shadows_color_r", _("shadows_color_r"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_shadows_color_r, "Rotanteil der Schatten anpassen.")
+    obs.obs_property_set_long_description(prop_shadows_color_r, "Rotanteil der Schatten. Positive Werte erhöhen den Rotanteil, negative Werte verringern ihn.")
     
     local prop_shadows_color_g = obs.obs_properties_add_float_slider(color_wheels_group, "shadows_color_g", _("shadows_color_g"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_shadows_color_g, "Grünanteil der Schatten anpassen.")
+    obs.obs_property_set_long_description(prop_shadows_color_g, "Grünanteil der Schatten. Positive Werte erhöhen den Grünanteil, negative Werte verringern ihn.")
     
     local prop_shadows_color_b = obs.obs_properties_add_float_slider(color_wheels_group, "shadows_color_b", _("shadows_color_b"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_shadows_color_b, "Blausteil der Schatten anpassen.")
+    obs.obs_property_set_long_description(prop_shadows_color_b, "Blausteil der Schatten. Positive Werte erhöhen den Blausteil, negative Werte verringern ihn.")
     
     local prop_midtones_color_r = obs.obs_properties_add_float_slider(color_wheels_group, "midtones_color_r", _("midtones_color_r"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_midtones_color_r, "Rotanteil der Mitteltöne anpassen.")
+    obs.obs_property_set_long_description(prop_midtones_color_r, "Rotanteil der Mitteltöne. Positive Werte erhöhen den Rotanteil, negative Werte verringern ihn.")
     
     local prop_midtones_color_g = obs.obs_properties_add_float_slider(color_wheels_group, "midtones_color_g", _("midtones_color_g"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_midtones_color_g, "Grünanteil der Mitteltöne anpassen.")
+    obs.obs_property_set_long_description(prop_midtones_color_g, "Grünanteil der Mitteltöne. Positive Werte erhöhen den Grünanteil, negative Werte verringern ihn.")
     
     local prop_midtones_color_b = obs.obs_properties_add_float_slider(color_wheels_group, "midtones_color_b", _("midtones_color_b"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_midtones_color_b, "Blausteil der Mitteltöne anpassen.")
+    obs.obs_property_set_long_description(prop_midtones_color_b, "Blausteil der Mitteltöne. Positive Werte erhöhen den Blausteil, negative Werte verringern ihn.")
     
     local prop_highlights_color_r = obs.obs_properties_add_float_slider(color_wheels_group, "highlights_color_r", _("highlights_color_r"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_highlights_color_r, "Rotanteil der Lichter anpassen.")
+    obs.obs_property_set_long_description(prop_highlights_color_r, "Rotanteil der Lichter. Positive Werte erhöhen den Rotanteil, negative Werte verringern ihn.")
     
     local prop_highlights_color_g = obs.obs_properties_add_float_slider(color_wheels_group, "highlights_color_g", _("highlights_color_g"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_highlights_color_g, "Grünanteil der Lichter anpassen.")
+    obs.obs_property_set_long_description(prop_highlights_color_g, "Grünanteil der Lichter. Positive Werte erhöhen den Grünanteil, negative Werte verringern ihn.")
     
     local prop_highlights_color_b = obs.obs_properties_add_float_slider(color_wheels_group, "highlights_color_b", _("highlights_color_b"), -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_highlights_color_b, "Blausteil der Lichter anpassen.")
+    obs.obs_property_set_long_description(prop_highlights_color_b, "Blausteil der Lichter. Positive Werte erhöhen den Blausteil, negative Werte verringern ihn.")
     
     obs.obs_properties_add_group(props, "color_wheels", _("color_wheels"), obs.OBS_GROUP_NORMAL, color_wheels_group)
     
@@ -1190,10 +1019,10 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "saturation", 0.0)
     obs.obs_data_set_default_double(settings, "vibrance", 0.0)
     obs.obs_data_set_default_double(settings, "vignette_amount", 0.0)
-    obs.obs_data_set_default_double(settings, "vignette_radius", 0.5)
-    obs.obs_data_set_default_double(settings, "vignette_feather", 0.1)
+    obs.obs_data_set_default_double(settings, "vignette_radius", 0.75)
+    obs.obs_data_set_default_double(settings, "vignette_feather", 0.5)
     obs.obs_data_set_default_double(settings, "grain_amount", 0.0)
-    obs.obs_data_set_default_double(settings, "grain_size", 10.0)
+    obs.obs_data_set_default_double(settings, "grain_size", 50.0)
     obs.obs_data_set_default_double(settings, "time_seed", 0.0)
     obs.obs_data_set_default_double(settings, "shadows_color_r", 0.0)
     obs.obs_data_set_default_double(settings, "shadows_color_g", 0.0)
@@ -1204,7 +1033,6 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "highlights_color_r", 0.0)
     obs.obs_data_set_default_double(settings, "highlights_color_g", 0.0)
     obs.obs_data_set_default_double(settings, "highlights_color_b", 0.0)
-    obs.obs_data_set_default_string(settings, "preset_select", "neutral")
 end
 
 -- Update-Funktion für Filtereinstellungen
@@ -1231,6 +1059,8 @@ source_info.update = function(data, settings)
     data.grain_amount = obs.obs_data_get_double(settings, "grain_amount")
     data.grain_size = obs.obs_data_get_double(settings, "grain_size")
     data.time_seed = obs.obs_data_get_double(settings, "time_seed")
+    
+    -- Farbrad-Parameter
     data.shadows_color_r = obs.obs_data_get_double(settings, "shadows_color_r")
     data.shadows_color_g = obs.obs_data_get_double(settings, "shadows_color_g")
     data.shadows_color_b = obs.obs_data_get_double(settings, "shadows_color_b")
@@ -1240,6 +1070,9 @@ source_info.update = function(data, settings)
     data.highlights_color_r = obs.obs_data_get_double(settings, "highlights_color_r")
     data.highlights_color_g = obs.obs_data_get_double(settings, "highlights_color_g")
     data.highlights_color_b = obs.obs_data_get_double(settings, "highlights_color_b")
+    
+    -- Einstellungen speichern
+    data.settings = settings
 end
 
 -- Video-Rendering
@@ -1373,10 +1206,10 @@ source_info.create = function(settings, source)
     data.saturation = 0.0
     data.vibrance = 0.0
     data.vignette_amount = 0.0
-    data.vignette_radius = 0.5
-    data.vignette_feather = 0.1
+    data.vignette_radius = 0.75
+    data.vignette_feather = 0.5
     data.grain_amount = 0.0
-    data.grain_size = 10.0
+    data.grain_size = 50.0
     data.time_seed = 0.0
     
     -- Farbrad-Parameter
@@ -1480,4 +1313,20 @@ end
 
 function script_unload()
     log_debug("Filter entladen")
+end
+
+
+function destroy(data)
+    if data.effect then
+        obs.obs_enter_graphics()
+        obs.gs_effect_destroy(data.effect)
+        obs.obs_leave_graphics()
+        data.effect = nil
+    end
+    if data.preview_texture then
+        obs.obs_enter_graphics()
+        obs.gs_texture_destroy(data.preview_texture)
+        obs.obs_leave_graphics()
+        data.preview_texture = nil
+    end
 end
