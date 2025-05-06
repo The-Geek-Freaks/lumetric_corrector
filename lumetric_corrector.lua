@@ -17,15 +17,6 @@ source_info.id = "lumetric_corrector_filter"
 source_info.type = obs.OBS_SOURCE_TYPE_FILTER
 source_info.output_flags = bit.bor(obs.OBS_SOURCE_VIDEO, obs.OBS_SOURCE_CUSTOM_DRAW)
 
--- Zeitsensitive Aktualisierung (alle 1000ms)
-local function update_time_seed()
-    if data then
-        data.time_seed = obs.os_gettime_s()
-    end
-end
-obs.timer_add(update_time_seed, 1000)
-
-
 -- Übersetzungen
 local translations = {
     ["en-US"] = {
@@ -170,10 +161,37 @@ local translations = {
     }
 }
 
+-- Schaltet Debug-Logs ein/aus
+local DEBUG = false
+
+-- Kompatible Zeitfunktion (Sekunden als float)
+local function get_time_s()
+    if obs.os_gettime_s then
+        return obs.os_gettime_s()
+    elseif obs.os_gettime_ns then
+        return obs.os_gettime_ns() / 1e9
+    else
+        return os.clock()
+    end
+end
+
 -- Shader mit erweiterten Funktionen (Vignette und Film Grain)
 local shader_code = [[
 uniform float4x4 ViewProj;
 uniform texture2d image;
+
+// Plattform-Kompatibilität: fehlende HLSL-Intrinsics für GLSL/macOS bereitstellen
+#ifdef GS_PLATFORM_OPENGL
+#ifndef saturate
+#define saturate(x) clamp(x, 0.0, 1.0)
+#endif
+#ifndef lerp
+#define lerp(a,b,t) mix(a,b,t)
+#endif
+#ifndef frac
+#define frac(x) fract(x)
+#endif
+#endif
 
 // Grundlegende Korrekturen
 uniform float exposure;
@@ -573,7 +591,9 @@ end
 
 -- Hilfsfunktion für Debug-Logging
 local function log_debug(message)
-    obs.blog(obs.LOG_INFO, "[Lumetric] " .. message)
+    if DEBUG then
+        obs.blog(obs.LOG_INFO, "[Lumetric] " .. message)
+    end
 end
 
 -- Übersetzungsfunktion
@@ -633,6 +653,15 @@ end
 -- Aktualisierung vor dem Rendern
 source_info.video_tick = function(data, seconds)
     if not data then return end
+    
+    -- Instanzspezifischen Zeitsamen aktualisieren
+    -- time_seed nur 1× pro Sekunde aktualisieren
+    local now = get_time_s()
+    if (not data.last_seed_ts) or ((now - data.last_seed_ts) >= 1) then
+        data.time_seed    = now
+        data.last_seed_ts = now
+        data.dirty        = true
+    end
     
     -- Aktualisiere die Größe
     set_render_size(data)
@@ -1073,6 +1102,9 @@ source_info.update = function(data, settings)
     
     -- Einstellungen speichern
     data.settings = settings
+    
+    -- Flag setzen, damit neue Uniform-Werte übertragen werden
+    data.dirty = true
 end
 
 -- Video-Rendering
@@ -1119,7 +1151,10 @@ source_info.video_render = function(data, effect)
         obs.obs_source_process_filter_begin(data.source, obs.GS_RGBA, obs.OBS_NO_DIRECT_RENDERING)
         
         -- Parameter an den Shader übergeben
-        set_shader_params(data)
+        if data.dirty then
+            set_shader_params(data)
+            data.dirty = false
+        end
         
         -- Effekt anwenden
         local technique = obs.gs_effect_get_technique(data.effect, "Draw")
@@ -1163,7 +1198,9 @@ source_info.video_render_preview = function(data)
         
         -- Verwende den Effekt für die Vorschau
         data.target_texture = nil  -- Signalisieren dass wir im Preview-Modus sind
-        set_shader_params(data)
+        if data.dirty then
+            set_shader_params(data)
+        end
         
         local technique = obs.gs_effect_get_technique(data.effect, "Draw")
         if not technique then return end
@@ -1222,6 +1259,10 @@ source_info.create = function(settings, source)
     data.highlights_color_r = 0.0
     data.highlights_color_g = 0.0
     data.highlights_color_b = 0.0
+    
+    -- Dirty-Flag & Seed-Timestamp für Optimierungen
+    data.dirty = true
+    data.last_seed_ts = 0
     
     -- Shader erstellen und Parameter abrufen
     obs.obs_enter_graphics()

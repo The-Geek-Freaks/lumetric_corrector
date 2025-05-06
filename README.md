@@ -4,7 +4,7 @@
   <p>Perfect for streamers, content creators, and videographers seeking cinematic quality.</p>
 
   ![Downloads](https://img.shields.io/github/downloads/The-Geek-Freaks/lumetric_corrector/total)
-  ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
+  ![Version](https://img.shields.io/badge/Version-1.1.1-blue)
   ![OBS-Lua](https://img.shields.io/badge/OBS--Lua-Compatible-green.svg)
   ![OBS](https://img.shields.io/badge/OBS-30.0+-purple.svg)
   ![Windows](https://img.shields.io/badge/Windows-10%2F11-blue)
@@ -279,12 +279,10 @@ If you encounter issues not covered here, please:
 
 Siehe [CHANGELOG.md](./CHANGELOG.md) für eine vollständige Liste aller Änderungen und Verbesserungen.
 
-### Neu in Version 1.1.0 (ULTRA Optimized)
-- Deutlich verbesserte Performance durch gezieltes Parameter-Update
-- Zeitsensitive Animation für Film Grain
-- Verbesserte Fehlerbehandlung und Logging
-- Beseitigung von Lua- und API-Kompatibilitätsproblemen
-- Code-Refactoring für bessere Wartbarkeit
+### Neu in Version 1.1.1 – Cross-Platform Fix
+- **Plattform-Fix**: Shader-Makros jetzt nur unter OpenGL aktiv – volle Kompatibilität mit Windows (D3D11) & macOS (GLSL)
+- **Bugfix**: Effekt wird unter Windows wieder korrekt dargestellt
+- **Verbesserung**: Grundlage für weitere plattformabhängige Erweiterungen
 
 ## 📄 License
 This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.

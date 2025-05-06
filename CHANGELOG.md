@@ -33,16 +33,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2025-04-25
 
 ### Changed
-- Performance-Optimierung: Shader-Parameter werden nur noch gesetzt, wenn sich der Wert geändert hat (reduziert GPU-Load und verbessert die Effizienz).
-- Zeitsensitive Aktualisierung der Filmkorn-Animation durch Timer.
-- Verbesserte Fehlerbehandlung und Debug-Logging während des Renderings und beim Laden von Shadern.
-- Verbesserte Parameterstruktur und Initialisierung für mehr Robustheit.
+- Performance optimisation: shader parameters are now updated only when their value changes, reducing GPU load and improving efficiency.
+- Time-synchronised film-grain animation driven by a timer.
+- Improved error handling and debug logging during rendering and shader loading.
+- Improved parameter structure and initialisation for greater robustness.
 
 ### Fixed
-- Lua-Syntaxfehler in den Parameter-Update-Blöcken beseitigt.
-- OBS-API-Aufrufe (gs_effect_set_float, gs_effect_set_texture) korrekt über das obs-Modul eingebunden.
-- Kompatibilität mit aktuellen OBS Studio Lua-Standards sichergestellt.
+- Resolved Lua syntax errors in parameter-update blocks.
+- Correctly integrated OBS API calls (`gs_effect_set_float`, `gs_effect_set_texture`) via the `obs` module.
+- Ensured compatibility with current OBS Studio Lua standards.
 
 ### Internal
-- Code-Refactoring und bessere Lesbarkeit.
-- Vorbereitung für weitere Optimierungen und Features.
+- Code refactoring for improved readability.
+- Preparations for future optimisations and features.
+
+## [1.1.1] - 2025-05-06
+
+### Fixed
+- Restored Windows (Direct3D/HLSL) rendering by wrapping GLSL intrinsic replacements with `#ifdef GS_PLATFORM_OPENGL`.
+- Maintained macOS (OpenGL/GLSL) compatibility.
+
+### Added
+- Platform-specific intrinsic mapping logic enabling true cross-platform support.
