@@ -35,6 +35,9 @@ local translations = {
         ["shadows"] = "Shadows",
         ["whites"] = "Whites",
         ["blacks"] = "Blacks",
+        ["highlight_fade"] = "Highlight Fade",
+        ["shadow_fade"] = "Shadow Fade",
+        ["black_lift"] = "Black Lift",
         ["wb"] = "White Balance",
         ["temperature"] = "Temperature",
         ["tint"] = "Tint",
@@ -105,6 +108,9 @@ local translations = {
         ["shadows"] = "Schatten",
         ["whites"] = "Weiß",
         ["blacks"] = "Schwarz",
+        ["highlight_fade"] = "Lichter Ausbleichen",
+        ["shadow_fade"] = "Schatten Aufhellen",
+        ["black_lift"] = "Schwarzwert Anheben",
         ["wb"] = "Weißabgleich",
         ["temperature"] = "Temperatur",
         ["tint"] = "Farbton",
@@ -201,6 +207,10 @@ uniform float highlights;
 uniform float shadows;
 uniform float whites;
 uniform float blacks;
+// Ausbleich-Effekte
+uniform float highlight_fade;
+uniform float shadow_fade;
+uniform float black_lift;
 
 // Weißabgleich
 uniform float temperature;
@@ -214,6 +224,7 @@ uniform float vibrance;
 uniform float vignette_amount;
 uniform float vignette_radius;
 uniform float vignette_feather;
+uniform float vignette_shape;  // 0.0 = Kreis, 1.0 = Mehr rechteckig
 
 // Film Grain
 uniform float grain_amount;
@@ -289,9 +300,18 @@ float3 apply_vibrance(float3 color, float vibrance_value) {
 }
 
 // Vignette anwenden
-float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float feather) {
+float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float feather, float shape) {
     float2 center = float2(0.5, 0.5);
-    float dist = distance(uv, center);
+    
+    // Anpassbare Form zwischen Kreis und mehr rechteckiger Form
+    float2 d = abs(uv - center);
+    // Bei 0.0 normal euklidische Distanz (Kreis)
+    // Bei 1.0 mehr zu Manhattan-Distanz (Rechteckiger)
+    float dist = lerp(
+        length(d),                       // Kreis
+        sqrt(d.x*d.x*1.5 + d.y*d.y*0.5), // Horizontales Oval
+        shape
+    );
     
     // Vignette stärke berechnen
     float vignette = smoothstep(radius, radius - feather, dist);
@@ -300,17 +320,7 @@ float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float
     return color * lerp(1.0, vignette, amount);
 }
 
-// Film Grain anwenden
-
-float3 apply_film_grain(float3 color, float2 uv, float amount, float grain_size, float seed) {
-    if (amount == 0.0) return color;
-    float2 coord = uv * grain_size;
-    float noise = frac(sin(dot(coord, float2(12.9898, 78.233))) * 43758.5453);
-    float grain = noise * 2.0 - 1.0;
-    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
-    float grain_amt = amount * (0.5 + luma * 0.5);
-    return lerp(color, color * (0.9 + grain * 0.2), grain_amt);
-}
+// Film Grain wurde entfernt - es verursachte "tickendes" Verhalten
 
 
 // Berechnet die Gewichtung für die verschiedenen Tonwertbereiche
@@ -371,6 +381,13 @@ float4 PSDefault(VertDataOut v_in) : TARGET
         result = lerp(result, result + blacks * 0.5, blacks_mask);
     }
     
+    // Schwarzwert-Anhebung (Black Lift)
+    if (black_lift > 0.0) {
+        float lift_amount = black_lift * 0.5; // Maximale Anhebung von 0.5
+        float lift_mask = 1.0 - smoothstep(0.0, 0.4, result);
+        result = lerp(result, result + lift_amount, lift_mask);
+    }
+    
     // Helligkeit
     result = saturate(result + brightness);
     
@@ -379,6 +396,21 @@ float4 PSDefault(VertDataOut v_in) : TARGET
     
     // Farbtemperatur und Tint
     result = apply_temperature(result, temperature, tint);
+    
+    // Highlight/Shadow Ausbleichen
+    float luma = dot(result, float3(0.2126, 0.7152, 0.0722));
+    
+    // Lichter ausbleichen
+    if (highlight_fade > 0.0) {
+        float highlight_mask = smoothstep(0.7, 1.0, luma);
+        result = lerp(result, float3(1.0, 1.0, 1.0), highlight_mask * highlight_fade);
+    }
+    
+    // Schatten ausbleichen (aufhellen)
+    if (shadow_fade > 0.0) {
+        float shadow_mask = 1.0 - smoothstep(0.0, 0.3, luma);
+        result = lerp(result, float3(1.0, 1.0, 1.0), shadow_mask * shadow_fade);
+    }
     
     // Farbräder/Farbbalance anwenden
     float3 shadows_col = float3(shadows_color_r, shadows_color_g, shadows_color_b);
@@ -392,13 +424,10 @@ float4 PSDefault(VertDataOut v_in) : TARGET
     
     // Vignette anwenden
     if (vignette_amount > 0.0) {
-        result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather);
+        result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
     }
     
-    // Film Grain anwenden
-    if (grain_amount > 0.0) {
-        result = apply_film_grain(result, v_in.uv, grain_amount, grain_size, time_seed);
-    }
+    // Film Grain wurde entfernt - es verursachte "tickendes" Verhalten
     
     // Ergebnis sicherstellen
     return float4(result, color.a);
@@ -506,6 +535,12 @@ function set_shader_params(data)
             data.last_vignette_feather = data.vignette_feather
         end
     end
+    if data.params.vignette_shape then 
+        if data.last_vignette_shape ~= data.vignette_shape then
+            obs.gs_effect_set_float(data.params.vignette_shape, data.vignette_shape)
+            data.last_vignette_shape = data.vignette_shape
+        end
+    end
     if data.params.grain_amount then 
         if data.last_grain_amount ~= data.grain_amount then
             obs.gs_effect_set_float(data.params.grain_amount, data.grain_amount)
@@ -518,10 +553,29 @@ function set_shader_params(data)
             data.last_grain_size = data.grain_size
         end
     end
+    if data.params.highlight_fade then 
+        if data.last_highlight_fade ~= data.highlight_fade then
+            obs.gs_effect_set_float(data.params.highlight_fade, data.highlight_fade)
+            data.last_highlight_fade = data.highlight_fade
+        end
+    end
+    if data.params.shadow_fade then 
+        if data.last_shadow_fade ~= data.shadow_fade then
+            obs.gs_effect_set_float(data.params.shadow_fade, data.shadow_fade)
+            data.last_shadow_fade = data.shadow_fade
+        end
+    end
     if data.params.time_seed then 
         if data.last_time_seed ~= data.time_seed then
             obs.gs_effect_set_float(data.params.time_seed, data.time_seed)
             data.last_time_seed = data.time_seed
+        end
+    end
+    
+    if data.params.black_lift then 
+        if data.last_black_lift ~= data.black_lift then
+            obs.gs_effect_set_float(data.params.black_lift, data.black_lift)
+            data.last_black_lift = data.black_lift
         end
     end
     
@@ -946,6 +1000,15 @@ source_info.get_properties = function(data)
     local prop_contrast = obs.obs_properties_add_float_slider(exposure_group, "contrast", _("contrast"), -1.0, 1.0, 0.01)
     obs.obs_property_set_long_description(prop_contrast, "Kontrast des Bildes. Positive Werte erhöhen den Kontrast, negative Werte verringern ihn.")
     
+    local prop_highlight_fade = obs.obs_properties_add_float_slider(exposure_group, "highlight_fade", _("highlight_fade"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_highlight_fade, "Lichter ausbleichen. Höhere Werte lassen helle Bereiche weißer erscheinen.")
+    
+    local prop_shadow_fade = obs.obs_properties_add_float_slider(exposure_group, "shadow_fade", _("shadow_fade"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_shadow_fade, "Schatten ausbleichen. Höhere Werte lassen dunkle Bereiche heller erscheinen.")
+    
+    local prop_black_lift = obs.obs_properties_add_float_slider(exposure_group, "black_lift", _("black_lift"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_black_lift, "Schwarzwert-Anhebung. Höhere Werte heben den Schwarzpunkt an und machen dunkle Bereiche heller.")
+    
     obs.obs_properties_add_group(props, "exposure", _("basic"), obs.OBS_GROUP_NORMAL, exposure_group)
     
     -- Weißabgleich
@@ -968,6 +1031,8 @@ source_info.get_properties = function(data)
     local prop_vibrance = obs.obs_properties_add_float_slider(color_group, "vibrance", _("vibrance"), -1.0, 1.0, 0.01)
     obs.obs_property_set_long_description(prop_vibrance, "Lebendigkeit des Bildes. Positive Werte erhöhen die Lebendigkeit, negative Werte verringern sie.")
     
+
+    
     obs.obs_properties_add_group(props, "color", _("color"), obs.OBS_GROUP_NORMAL, color_group)
     
     -- Vignette
@@ -982,21 +1047,10 @@ source_info.get_properties = function(data)
     local prop_vignette_feather = obs.obs_properties_add_float_slider(vignette_group, "vignette_feather", _("vignette_feather"), 0.0, 1.0, 0.01)
     obs.obs_property_set_long_description(prop_vignette_feather, "Weichzeichnung der Vignette. Positive Werte erhöhen die Weichzeichnung, negative Werte verringern sie.")
     
+    local prop_vignette_shape = obs.obs_properties_add_float_slider(vignette_group, "vignette_shape", "Vignette Form", 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_vignette_shape, "Form der Vignette. 0 = Kreisförmig, 1 = Ovaler/Rechteckiger.")
+    
     obs.obs_properties_add_group(props, "vignette", _("vignette"), obs.OBS_GROUP_NORMAL, vignette_group)
-    
-    -- Film Grain
-    local grain_group = obs.obs_properties_create()
-    
-    local prop_grain_amount = obs.obs_properties_add_float_slider(grain_group, "grain_amount", _("grain_amount"), 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_grain_amount, "Stärke des Filmkorns. Positive Werte erhöhen das Filmkorn, negative Werte verringern es.")
-    
-    local prop_grain_size = obs.obs_properties_add_float_slider(grain_group, "grain_size", _("grain_size"), 1.0, 100.0, 1.0)
-    obs.obs_property_set_long_description(prop_grain_size, "Größe des Filmkorns. Positive Werte erhöhen die Größe, negative Werte verringern sie.")
-    
-    local prop_time_seed = obs.obs_properties_add_float_slider(grain_group, "time_seed", _("time_seed"), 0.0, 100.0, 1.0)
-    obs.obs_property_set_long_description(prop_time_seed, "Zeit-Seed für das Filmkorn. Positive Werte ändern das Filmkorn-Muster.")
-    
-    obs.obs_properties_add_group(props, "film_grain", _("film_grain"), obs.OBS_GROUP_NORMAL, grain_group)
     
     -- Farbräder
     local color_wheels_group = obs.obs_properties_create()
@@ -1043,6 +1097,9 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "shadows", 0.0)
     obs.obs_data_set_default_double(settings, "whites", 0.0)
     obs.obs_data_set_default_double(settings, "blacks", 0.0)
+    obs.obs_data_set_default_double(settings, "highlight_fade", 0.0)
+    obs.obs_data_set_default_double(settings, "shadow_fade", 0.0)
+    obs.obs_data_set_default_double(settings, "black_lift", 0.0)
     obs.obs_data_set_default_double(settings, "temperature", 0.0)
     obs.obs_data_set_default_double(settings, "tint", 0.0)
     obs.obs_data_set_default_double(settings, "saturation", 0.0)
@@ -1050,6 +1107,8 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "vignette_amount", 0.0)
     obs.obs_data_set_default_double(settings, "vignette_radius", 0.75)
     obs.obs_data_set_default_double(settings, "vignette_feather", 0.5)
+    obs.obs_data_set_default_double(settings, "vignette_shape", 0.0)
+    obs.obs_data_set_default_double(settings, "vignette_shape", 0.0)
     obs.obs_data_set_default_double(settings, "grain_amount", 0.0)
     obs.obs_data_set_default_double(settings, "grain_size", 50.0)
     obs.obs_data_set_default_double(settings, "time_seed", 0.0)
@@ -1085,8 +1144,12 @@ source_info.update = function(data, settings)
     data.vignette_amount = obs.obs_data_get_double(settings, "vignette_amount")
     data.vignette_radius = obs.obs_data_get_double(settings, "vignette_radius")
     data.vignette_feather = obs.obs_data_get_double(settings, "vignette_feather")
+    data.vignette_shape = obs.obs_data_get_double(settings, "vignette_shape")
     data.grain_amount = obs.obs_data_get_double(settings, "grain_amount")
     data.grain_size = obs.obs_data_get_double(settings, "grain_size")
+    data.highlight_fade = obs.obs_data_get_double(settings, "highlight_fade")
+    data.shadow_fade = obs.obs_data_get_double(settings, "shadow_fade")
+    data.black_lift = obs.obs_data_get_double(settings, "black_lift")
     data.time_seed = obs.obs_data_get_double(settings, "time_seed")
     
     -- Farbrad-Parameter
@@ -1238,6 +1301,9 @@ source_info.create = function(settings, source)
     data.shadows = 0.0
     data.whites = 0.0
     data.blacks = 0.0
+    data.highlight_fade = 0.0
+    data.shadow_fade = 0.0
+    data.black_lift = 0.0
     data.temperature = 0.0
     data.tint = 0.0
     data.saturation = 0.0
@@ -1245,6 +1311,7 @@ source_info.create = function(settings, source)
     data.vignette_amount = 0.0
     data.vignette_radius = 0.75
     data.vignette_feather = 0.5
+    data.vignette_shape = 0.0
     data.grain_amount = 0.0
     data.grain_size = 50.0
     data.time_seed = 0.0
@@ -1288,9 +1355,13 @@ source_info.create = function(settings, source)
             data.params.vignette_amount = obs.gs_effect_get_param_by_name(data.effect, "vignette_amount")
             data.params.vignette_radius = obs.gs_effect_get_param_by_name(data.effect, "vignette_radius")
             data.params.vignette_feather = obs.gs_effect_get_param_by_name(data.effect, "vignette_feather")
+            data.params.vignette_shape = obs.gs_effect_get_param_by_name(data.effect, "vignette_shape")
             data.params.grain_amount = obs.gs_effect_get_param_by_name(data.effect, "grain_amount")
             data.params.grain_size = obs.gs_effect_get_param_by_name(data.effect, "grain_size")
             data.params.time_seed = obs.gs_effect_get_param_by_name(data.effect, "time_seed")
+            data.params.highlight_fade = obs.gs_effect_get_param_by_name(data.effect, "highlight_fade")
+            data.params.shadow_fade = obs.gs_effect_get_param_by_name(data.effect, "shadow_fade")
+            data.params.black_lift = obs.gs_effect_get_param_by_name(data.effect, "black_lift")
             
             -- Farbrad-Parameter
             data.params.shadows_color_r = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_r")

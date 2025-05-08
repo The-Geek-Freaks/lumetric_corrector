@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance optimisation: shader parameters are now updated only when their value changes, reducing GPU load and improving efficiency.
 - Time-synchronised film-grain animation driven by a timer.
 - Improved error handling and debug logging during rendering and shader loading.
-- Improved parameter structure and initialisation for greater robustness.
+- Refined parameter structure and initialisation for greater robustness.
 
 ### Fixed
 - Resolved Lua syntax errors in parameter-update blocks.
@@ -44,14 +44,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ensured compatibility with current OBS Studio Lua standards.
 
 ### Internal
-- Code refactoring for improved readability.
+- Code refactoring for improved readability and maintainability.
 - Preparations for future optimisations and features.
 
 ## [1.1.1] - 2025-05-06
 
 ### Fixed
-- Restored Windows (Direct3D/HLSL) rendering by wrapping GLSL intrinsic replacements with `#ifdef GS_PLATFORM_OPENGL`.
-- Maintained macOS (OpenGL/GLSL) compatibility.
+- Restored Windows (Direct3D/HLSL) visibility by guarding GLSL intrinsic replacements with `#ifdef GS_PLATFORM_OPENGL`.
+- Ensured macOS (OpenGL/GLSL) support remains functional.
 
 ### Added
-- Platform-specific intrinsic mapping logic enabling true cross-platform support.
+- Platform-specific intrinsic mapping logic for true cross-platform compatibility.
+
+## [1.1.2] - 2025-05-08
+
+### Added
+- Highlight Fade and Shadow Fade sliders for creative looks like film bleaching effects
+- Adjustable vignette shape control allowing oval/rectangular shapes instead of just circular
+- Animated film grain that creates a more natural and realistic film look
+
+### Improved
+- Film grain now uses dual-noise sampling for smoother animation
+- Better time-based seed distribution for grain animation
+- UI organization with logical placement of new controls
