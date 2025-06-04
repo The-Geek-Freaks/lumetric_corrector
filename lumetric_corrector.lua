@@ -3,7 +3,7 @@
   Eine Farbkorrektur-Lösung inspiriert von Adobe Lumetri Color
   
   Autor: TheGeekFreaks
-  Version: 1.0.0
+  Version: 1.1.2
   Lizenz: GPLv3
 ]]
 
