@@ -1108,7 +1108,6 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "vignette_radius", 0.75)
     obs.obs_data_set_default_double(settings, "vignette_feather", 0.5)
     obs.obs_data_set_default_double(settings, "vignette_shape", 0.0)
-    obs.obs_data_set_default_double(settings, "vignette_shape", 0.0)
     obs.obs_data_set_default_double(settings, "grain_amount", 0.0)
     obs.obs_data_set_default_double(settings, "grain_size", 50.0)
     obs.obs_data_set_default_double(settings, "time_seed", 0.0)
@@ -1362,7 +1361,9 @@ source_info.create = function(settings, source)
             data.params.highlight_fade = obs.gs_effect_get_param_by_name(data.effect, "highlight_fade")
             data.params.shadow_fade = obs.gs_effect_get_param_by_name(data.effect, "shadow_fade")
             data.params.black_lift = obs.gs_effect_get_param_by_name(data.effect, "black_lift")
-            
+            -- Standard-Image-Parameter für das Preview initialisieren
+            data.params.image = obs.gs_effect_get_param_by_name(data.effect, "image")
+
             -- Farbrad-Parameter
             data.params.shadows_color_r = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_r")
             data.params.shadows_color_g = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_g")
