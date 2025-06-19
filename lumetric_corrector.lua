@@ -10,6 +10,16 @@
 -- OBS Modul einfügen
 local obs = obslua
 
+-- FFI für Plattformerkennung
+local ffi = nil
+local success, err = pcall(function()
+    ffi = require("ffi")
+end)
+if not success then
+    -- FFI nicht verfügbar, kein Problem, wir haben Fallbacks
+    ffi = nil
+end
+
 -- Minimaler Filter, der praktisch nichts tut - ein "Null-Filter"
 
 local source_info = {}
@@ -168,21 +178,39 @@ local translations = {
 }
 
 -- Schaltet Debug-Logs ein/aus
-local DEBUG = false
+local DEBUG = true
+
+-- Plattformerkennung
+local function get_platform()
+    local os_name = ffi and ffi.os or "Windows"
+    if os_name == "Windows" then
+        return "windows"
+    elseif os_name == "OSX" or os_name == "Darwin" then
+        return "macos"
+    else
+        return "linux"
+    end
+end
+
+local PLATFORM = get_platform()
+local IS_MACOS = PLATFORM == "macos"
 
 -- Kompatible Zeitfunktion (Sekunden als float)
 local function get_time_s()
     if obs.os_gettime_s then
         return obs.os_gettime_s()
     elseif obs.os_gettime_ns then
-        return obs.os_gettime_ns() / 1e9
+        return obs.os_gettime_ns() / 1000000000.0
     else
-        return os.clock()
+        return os.time()
     end
 end
 
 -- Shader mit erweiterten Funktionen (Vignette und Film Grain)
-local shader_code = [[
+-- Wir definieren verschiedene Shader-Versionen für verschiedene Plattformen
+
+-- HLSL-Shader für Windows (Standard)
+local hlsl_shader_code = [[
 uniform float4x4 ViewProj;
 uniform texture2d image;
 
@@ -382,6 +410,276 @@ float4 PSDefault(VertDataOut v_in) : TARGET
     }
     
     // Schwarzwert-Anhebung (Black Lift)
+    if (black_lift > 0.0) {
+        float lift_amount = black_lift * 0.5; // Maximale Anhebung von 0.5
+        float lift_mask = 1.0 - smoothstep(0.0, 0.4, result);
+        result = lerp(result, result + lift_amount, lift_mask);
+    }
+    
+    // Helligkeit
+    result = saturate(result + brightness);
+    
+    // Kontrast
+    result = apply_contrast(result, contrast);
+    
+    // Farbtemperatur und Tint
+    result = apply_temperature(result, temperature, tint);
+    
+    // Highlight/Shadow Ausbleichen
+    float luma = dot(result, float3(0.2126, 0.7152, 0.0722));
+    
+    // Lichter ausbleichen
+    if (highlight_fade > 0.0) {
+        float highlight_mask = smoothstep(0.7, 1.0, luma);
+        result = lerp(result, float3(1.0, 1.0, 1.0), highlight_mask * highlight_fade);
+    }
+    
+    // Schatten ausbleichen (aufhellen)
+    if (shadow_fade > 0.0) {
+        float shadow_mask = 1.0 - smoothstep(0.0, 0.3, luma);
+        result = lerp(result, float3(1.0, 1.0, 1.0), shadow_mask * shadow_fade);
+    }
+    
+    // Farbräder/Farbbalance anwenden
+    float3 shadows_col = float3(shadows_color_r, shadows_color_g, shadows_color_b);
+    float3 midtones_col = float3(midtones_color_r, midtones_color_g, midtones_color_b);
+    float3 highlights_col = float3(highlights_color_r, highlights_color_g, highlights_color_b);
+    result = apply_color_balance(result, shadows_col, midtones_col, highlights_col);
+    
+    // Sättigung und Lebendigkeit
+    result = apply_saturation(result, saturation);
+    result = apply_vibrance(result, vibrance);
+    
+    // Vignette anwenden
+    if (vignette_amount > 0.0) {
+        result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
+    }
+    
+    // Film Grain wurde entfernt - es verursachte "tickendes" Verhalten
+    
+    // Ergebnis sicherstellen
+    return float4(result, color.a);
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = VSDefault(v_in);
+        pixel_shader  = PSDefault(v_in);
+    }
+}
+]]
+
+-- Wir verwenden keinen Metal-Shader mehr, da er zu Syntaxproblemen führt
+
+-- Verbesserter GLSL-Shader für macOS mit erweiterten Kompatibilitätsdefinitionen
+local glsl_shader_code = [[
+uniform mat4 ViewProj;
+uniform sampler2d image;
+
+// Erweiterte Kompatibilitätsdefinitionen für macOS GLSL
+#ifdef GS_PLATFORM_OPENGL
+#ifndef saturate
+#define saturate(x) clamp(x, 0.0, 1.0)
+#endif
+#ifndef lerp
+#define lerp(a,b,t) mix(a,b,t)
+#endif
+#ifndef frac
+#define frac(x) fract(x)
+#endif
+#ifndef float2
+#define float2 vec2
+#endif
+#ifndef float3
+#define float3 vec3
+#endif
+#ifndef float4
+#define float4 vec4
+#endif
+#ifndef float4x4
+#define float4x4 mat4
+#endif
+#ifndef TARGET
+#define TARGET
+#endif
+#endif
+
+// Uniforms für Farbkorrektur
+uniform float exposure;
+uniform float contrast;
+uniform float brightness;
+uniform float highlights;
+uniform float shadows;
+uniform float whites;
+uniform float blacks;
+uniform float highlight_fade;
+uniform float shadow_fade;
+uniform float black_lift;
+uniform float temperature;
+uniform float tint;
+uniform float saturation;
+uniform float vibrance;
+uniform float vignette_amount;
+uniform float vignette_radius;
+uniform float vignette_feather;
+uniform float vignette_shape;
+uniform float grain_amount;
+uniform float grain_size;
+uniform float time_seed;
+
+// Farbrad-Parameter
+uniform float shadows_color_r;
+uniform float shadows_color_g;
+uniform float shadows_color_b;
+uniform float midtones_color_r;
+uniform float midtones_color_g;
+uniform float midtones_color_b;
+uniform float highlights_color_r;
+uniform float highlights_color_g;
+uniform float highlights_color_b;
+
+struct VertDataIn {
+    float4 pos : POSITION;
+    float2 uv  : TEXCOORD0;
+};
+
+struct VertDataOut {
+    float4 pos : POSITION;
+    float2 uv  : TEXCOORD0;
+};
+
+VertDataOut VSDefault(VertDataIn v_in)
+{
+    VertDataOut vert_out;
+    vert_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    vert_out.uv  = v_in.uv;
+    return vert_out;
+}
+
+// Hilfsfunktionen
+float3 rgb_to_hsv(float3 rgb)
+{
+    float4 K = float4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+    float4 p = mix(float4(rgb.bg, K.wz), float4(rgb.gb, K.xy), step(rgb.b, rgb.g));
+    float4 q = mix(float4(p.xyw, rgb.r), float4(rgb.r, p.yzx), step(p.x, rgb.r));
+    
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+float3 hsv_to_rgb(float3 hsv)
+{
+    float4 K = float4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+    float3 p = abs(frac(hsv.xxx + K.xyz) * 6.0 - K.www);
+    return hsv.z * mix(K.xxx, saturate(p - K.xxx), hsv.y);
+}
+
+float3 apply_contrast(float3 color, float contrast_value)
+{
+    float midpoint = 0.5;
+    return saturate((color - midpoint) * (1.0 + contrast_value) + midpoint);
+}
+
+float3 apply_temperature(float3 color, float temp, float tint_value)
+{
+    // Temperatur-Anpassung
+    float3 warm = float3(0.95, 0.92, 0.88);
+    float3 cool = float3(0.88, 0.92, 0.95);
+    float3 target = (temp > 0.0) ? warm : cool;
+    float temp_abs = abs(temp);
+    color = lerp(color, color * target, temp_abs * 0.1);
+    
+    // Tint-Anpassung (Grün-Magenta)
+    float3 tint_target = (tint_value > 0.0) ? float3(0.96, 1.0, 0.96) : float3(1.0, 0.96, 1.0);
+    float tint_abs = abs(tint_value);
+    color = lerp(color, color * tint_target, tint_abs * 0.1);
+    
+    return color;
+}
+
+float3 apply_saturation(float3 color, float sat)
+{
+    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
+    return lerp(float3(luma, luma, luma), color, 1.0 + sat);
+}
+
+float3 apply_vibrance(float3 color, float vib)
+{
+    float max_color = max(color.r, max(color.g, color.b));
+    float min_color = min(color.r, min(color.g, color.b));
+    float sat = (max_color - min_color) / max(max_color, 0.001);
+    float vibrance_amount = 1.0 + (vib * (1.0 - sat));
+    return lerp(float3(dot(color, float3(0.299, 0.587, 0.114))), color, vibrance_amount);
+}
+
+float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float feather, float shape)
+{
+    float2 center = float2(0.5, 0.5);
+    float2 coord = uv - center;
+    
+    // Elliptische Form basierend auf shape-Parameter
+    float aspect = 16.0 / 9.0; // Standard-Seitenverhältnis
+    coord.x *= lerp(1.0, aspect, shape);
+    
+    float dist = length(coord);
+    float vignette_mask = smoothstep(radius, radius - feather, dist);
+    vignette_mask = pow(vignette_mask, 2.0); // Für weichere Kanten
+    
+    return color * (1.0 - amount + vignette_mask * amount);
+}
+
+// Farbbalance basierend auf Luminanz
+float3 apply_color_balance(float3 color, float3 shadows_col, float3 midtones_col, float3 highlights_col)
+{
+    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
+    
+    // Gewichtung für Schatten, Mitteltöne und Lichter
+    float shadows_weight = 1.0 - smoothstep(0.0, 0.5, luma);
+    float highlights_weight = smoothstep(0.5, 1.0, luma);
+    float midtones_weight = 1.0 - shadows_weight - highlights_weight;
+    
+    // Farbbalance anwenden
+    float3 shadows_adj = lerp(float3(1.0, 1.0, 1.0), shadows_col, shadows_weight * 0.2);
+    float3 midtones_adj = lerp(float3(1.0, 1.0, 1.0), midtones_col, midtones_weight * 0.2);
+    float3 highlights_adj = lerp(float3(1.0, 1.0, 1.0), highlights_col, highlights_weight * 0.2);
+    
+    return color * shadows_adj * midtones_adj * highlights_adj;
+}
+
+float4 PSDefault(VertDataOut v_in) : TARGET
+{
+    float4 color = texture(image, v_in.uv);
+    float3 result = color.rgb;
+
+    // Belichtung
+    result *= pow(2.0, exposure);
+
+    // Lichterwerte und Schatten
+    if (highlights != 0.0) {
+        float highlight_mask = smoothstep(0.5, 1.0, result);
+        result = lerp(result, result * (1.0 + highlights), highlight_mask);
+    }
+    if (shadows != 0.0) {
+        float shadow_mask = 1.0 - smoothstep(0.0, 0.5, result);
+        result = lerp(result, result * (1.0 + shadows), shadow_mask);
+    }
+
+    // Weißpunkt und Schwarzpunkt
+    if (whites != 0.0) {
+        float whites_amount = whites * 0.05;
+        float whites_mask = smoothstep(0.7, 1.0, result);
+        result = lerp(result, saturate(result + whites_amount), whites_mask);
+    }
+    if (blacks != 0.0) {
+        float blacks_amount = blacks * 0.05;
+        float blacks_mask = 1.0 - smoothstep(0.0, 0.3, result);
+        result = lerp(result, saturate(result - blacks_amount), blacks_mask);
+    }
+
+    // Schwarzanhebung
     if (black_lift > 0.0) {
         float lift_amount = black_lift * 0.5; // Maximale Anhebung von 0.5
         float lift_mask = 1.0 - smoothstep(0.0, 0.4, result);
@@ -643,10 +941,23 @@ function set_shader_params(data)
     end
 end
 
--- Hilfsfunktion für Debug-Logging
+-- Hilfsfunktion für Debug-Log-Funktion mit erweiterten Informationen
 local function log_debug(message)
     if DEBUG then
-        obs.blog(obs.LOG_INFO, "[Lumetric] " .. message)
+        local platform_info = IS_MACOS and "[macOS]" or "[Windows]"
+        print("[Lumetric Corrector] " .. platform_info .. " " .. message)
+    end
+end
+
+-- Erweiterte Fehlerbehandlung für Shader
+local function handle_shader_error()
+    local error = obs.gs_get_last_error()
+    if error ~= nil then
+        log_debug("Shader-Fehler: " .. error)
+        return error
+    else
+        log_debug("Unbekannter Shader-Fehler ohne Fehlermeldung")
+        return "Unbekannter Fehler"
     end
 end
 
@@ -1334,10 +1645,34 @@ source_info.create = function(settings, source)
     -- Shader erstellen und Parameter abrufen
     obs.obs_enter_graphics()
     
+    local function create_shader()
+        local shader_code_to_use = hlsl_shader_code -- Standard für Windows
+        local shader_type = "HLSL"
+        
+        -- Plattformspezifische Shader-Auswahl
+        local platform = get_platform()
+        if platform == "macos" then
+            log_debug("macOS erkannt, verwende verbesserten GLSL-Shader")
+            shader_code_to_use = glsl_shader_code
+            shader_type = "GLSL"
+        end
+        
+        -- HLSL (Windows) oder GLSL (macOS) verwenden
+        log_debug("Erstelle " .. shader_type .. "-Shader")
+        local effect = obs.gs_effect_create(shader_code_to_use, "lumetric_shader", nil)
+        if effect == nil then
+            log_debug("Fehler beim Erstellen des " .. shader_type .. "-Shaders: " .. handle_shader_error())
+        else
+            log_debug(shader_type .. "-Shader erfolgreich erstellt")
+        end
+        return effect, shader_type
+    end
+    
     local success, err = pcall(function()
-        data.effect = obs.gs_effect_create(shader_code, "lumetric_shader", nil)
+        data.effect, data.shader_type = create_shader()
         
         if data.effect ~= nil then
+            log_debug("Shader vom Typ '" .. (data.shader_type or "unbekannt") .. "' wird verwendet")
             -- Parameter für den Shader abrufen
             data.params = {}
             
