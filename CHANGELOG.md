@@ -67,3 +67,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Film grain now uses dual-noise sampling for smoother animation
 - Better time-based seed distribution for grain animation
 - UI organization with logical placement of new controls
+
+## [1.2.0] - 2025-06-18
+
+### Added
+- Plattformerkennung mit FFI für betriebssystemspezifische Anpassungen
+- Erweiterte GLSL-Kompatibilitätsmakros für macOS
+- Verbesserte Debug-Logging-Funktionen mit Plattform-Informationen
+
+### Changed
+- Optimierte Shader-Auswahllogik basierend auf dem Betriebssystem
+- Verbesserte GLSL-Shader-Implementierung für macOS Sonoma
+- Aktivierung von Debug-Logs für bessere Fehlerdiagnose
+
+### Fixed
+- Kompatibilitätsprobleme mit macOS Sonoma behoben
+- Fehlerbehandlung bei Shader-Kompilierung verbessert
+- Syntaxkonflikte in der Lua-Implementierung behoben
+
+## [1.3.0] - 2025-06-22
+
+### Added
+- Split-Toning Funktion für kreative Farbeffekte in Schatten und Lichtern
+- Schärfungs-Effekt mit einstellbarer Stärke und Radius
+- Bloom-Effekt mit Intensitäts- und Schwellenwert-Kontrolle
+- Benutzerdefinierte Voreinstellungen speichern/laden mit JSON-Serialisierung
+- Export/Import von Einstellungen für einfachen Austausch
+
+### Changed
+- Verbesserte UI-Organisation mit neuen Gruppen für Split-Toning, Schärfung und Bloom
+- Optimierte Shader-Parameter-Aktualisierung für bessere Performance

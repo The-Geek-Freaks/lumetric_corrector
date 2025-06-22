@@ -3,7 +3,7 @@
   Eine Farbkorrektur-Lösung inspiriert von Adobe Lumetri Color
   
   Autor: TheGeekFreaks
-  Version: 1.2.0
+  Version: 1.3.0
   Lizenz: GPLv3
 ]]
 
@@ -511,7 +511,7 @@ local function export_settings(data, preset_name)
     -- Metadaten
     settings.name = preset_name
     settings.created = os.date("%Y-%m-%d %H:%M:%S")
-    settings.version = "1.2.0"
+    settings.version = "1.3.0"
     
     -- Konvertiere zu JSON
     local json_str = json.stringify(settings)
@@ -1029,6 +1029,15 @@ uniform sampler2d image;
 #ifndef float4x4
 #define float4x4 mat4
 #endif
+#ifndef texture2d
+#define texture2d sampler2D
+#endif
+#ifndef sampler_state
+#define sampler_state
+#endif
+#ifndef Sample
+#define Sample(texture, coord) texture(texture, coord)
+#endif
 #ifndef TARGET
 #define TARGET
 #endif
@@ -1056,6 +1065,21 @@ uniform float vignette_shape;
 uniform float grain_amount;
 uniform float grain_size;
 uniform float time_seed;
+// Split-Toning
+uniform float split_shadows_hue;
+uniform float split_shadows_sat;
+uniform float split_highlights_hue;
+uniform float split_highlights_sat;
+uniform float split_balance;
+// Schärfung
+uniform float sharpen_amount;
+uniform float sharpen_radius;
+// Bloom
+uniform float bloom_amount;
+uniform float bloom_threshold;
+// Texel-Size
+uniform float width;
+uniform float height;
 
 // Farbrad-Parameter
 uniform float shadows_color_r;
@@ -1177,6 +1201,49 @@ float3 apply_color_balance(float3 color, float3 shadows_col, float3 midtones_col
     return color * shadows_adj * midtones_adj * highlights_adj;
 }
 
+float3 apply_split_toning(float3 color, float shadows_hue, float shadows_sat, float highlights_hue, float highlights_sat, float balance)
+{
+    float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+    float highlights_weight = saturate(luminance + balance * 0.5);
+    float shadows_weight = 1.0 - highlights_weight;
+    float3 shadows_color = hsv_to_rgb(float3(shadows_hue, shadows_sat, 1.0));
+    float3 highlights_color = hsv_to_rgb(float3(highlights_hue, highlights_sat, 1.0));
+    float3 toned_color = color * (1.0 - shadows_sat * shadows_weight - highlights_sat * highlights_weight)
+                       + shadows_color * shadows_weight * shadows_sat
+                       + highlights_color * highlights_weight * highlights_sat;
+    return toned_color;
+}
+
+float3 apply_sharpen(sampler2D tex, vec2 uv, vec2 texel_size, float amount, float radius)
+{
+    vec3 center = texture(tex, uv).rgb;
+    vec3 blur = vec3(0.0);
+    blur += texture(tex, uv + vec2(-radius * texel_size.x, 0.0)).rgb;
+    blur += texture(tex, uv + vec2( radius * texel_size.x, 0.0)).rgb;
+    blur += texture(tex, uv + vec2(0.0, -radius * texel_size.y)).rgb;
+    blur += texture(tex, uv + vec2(0.0,  radius * texel_size.y)).rgb;
+    blur *= 0.25;
+    return center + (center - blur) * amount;
+}
+
+float3 apply_bloom(sampler2D tex, vec2 uv, vec2 texel_size, float amount, float threshold)
+{
+    vec3 color = texture(tex, uv).rgb;
+    float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    vec3 bloom = vec3(0.0);
+    float total_weight = 0.0;
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
+            float weight = 1.0 / (1.0 + x*x + y*y);
+            vec2 offset = vec2(x, y) * texel_size * 2.0;
+            bloom += texture(tex, uv + offset).rgb * weight * saturate(brightness - threshold);
+            total_weight += weight;
+        }
+    }
+    bloom /= total_weight;
+    return color + bloom * amount;
+}
+
 float4 PSDefault(VertDataOut v_in) : TARGET
 {
     float4 color = texture(image, v_in.uv);
@@ -1243,11 +1310,28 @@ float4 PSDefault(VertDataOut v_in) : TARGET
     float3 midtones_col = float3(midtones_color_r, midtones_color_g, midtones_color_b);
     float3 highlights_col = float3(highlights_color_r, highlights_color_g, highlights_color_b);
     result = apply_color_balance(result, shadows_col, midtones_col, highlights_col);
-    
+
     // Sättigung und Lebendigkeit
     result = apply_saturation(result, saturation);
     result = apply_vibrance(result, vibrance);
-    
+
+    // Split-Toning anwenden
+    if (split_shadows_sat > 0.0 || split_highlights_sat > 0.0) {
+        result = apply_split_toning(result, split_shadows_hue, split_shadows_sat, split_highlights_hue, split_highlights_sat, split_balance);
+    }
+
+    // Schärfung anwenden
+    if (sharpen_amount > 0.0) {
+        vec2 texel_size = vec2(1.0 / width, 1.0 / height);
+        result = apply_sharpen(image, v_in.uv, texel_size, sharpen_amount, sharpen_radius);
+    }
+
+    // Bloom anwenden
+    if (bloom_amount > 0.0) {
+        vec2 texel_size = vec2(1.0 / width, 1.0 / height);
+        result = apply_bloom(image, v_in.uv, texel_size, bloom_amount, bloom_threshold);
+    }
+
     // Vignette anwenden
     if (vignette_amount > 0.0) {
         result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
@@ -1607,7 +1691,7 @@ end
 
 -- Skriptbeschreibung
 function script_description()
-    return _("lumetric_corrector") .. " - " .. "v1.0.0"
+    return _("lumetric_corrector") .. " - " .. "v1.3.0"
 end
 
 -- Filtername für OBS
@@ -1952,7 +2036,8 @@ source_info.get_properties = function(data)
     local prop_black_lift = obs.obs_properties_add_float_slider(exposure_group, "black_lift", _("black_lift"), 0.0, 1.0, 0.01)
     obs.obs_property_set_long_description(prop_black_lift, "Schwarzwert-Anhebung. Höhere Werte heben den Schwarzpunkt an und machen dunkle Bereiche heller.")
     
-    obs.obs_properties_add_group(props, "exposure", _("basic"), obs.OBS_GROUP_NORMAL, exposure_group)
+    -- Gruppen-ID nicht wie Parameter benennen, um Konflikte zu vermeiden
+    obs.obs_properties_add_group(props, "basic_settings", _("basic"), obs.OBS_GROUP_NORMAL, exposure_group)
     
     -- Weißabgleich
     local wb_group = obs.obs_properties_create()
