@@ -4,7 +4,7 @@
   <p>Perfect for streamers, content creators, and videographers seeking cinematic quality.</p>
 
   ![Downloads](https://img.shields.io/github/downloads/The-Geek-Freaks/lumetric_corrector/total)
-  ![Version](https://img.shields.io/badge/Version-1.1.2-blue)
+  ![Version](https://img.shields.io/badge/Version-1.3.0-blue)
   ![OBS-Lua](https://img.shields.io/badge/OBS--Lua-Compatible-green.svg)
   ![OBS](https://img.shields.io/badge/OBS-30.0+-purple.svg)
   ![Windows](https://img.shields.io/badge/Windows-10%2F11-blue)
@@ -279,7 +279,7 @@ If you encounter issues not covered here, please:
 
 Siehe [CHANGELOG.md](./CHANGELOG.md) für eine vollständige Liste aller Änderungen und Verbesserungen.
 
-### Neu in Version 1.1.2 – Creative Effects Update
+### Neu in Version 1.3.0 – Creative Effects Update
 - **Highlight/Shadow Fade**: New sliders for creative film looks and bleaching effects
 - **Adjustable Vignette**: Vignette shape can now be modified from circular to oval/rectangular
 - **Living Film Grain**: Realistically animated film grain with improved time effects
