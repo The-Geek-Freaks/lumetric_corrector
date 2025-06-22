@@ -2256,9 +2256,15 @@ source_info.update = function(data, settings)
     
     -- Einstellungen speichern
     data.settings = settings
-    
+
     -- Flag setzen, damit neue Uniform-Werte übertragen werden
     data.dirty = true
+
+    -- Parameter sofort aktualisieren, damit Slider direkt wirken
+    if data.effect and data.params then
+        set_shader_params(data)
+        data.dirty = false
+    end
 end
 
 -- Video-Rendering
