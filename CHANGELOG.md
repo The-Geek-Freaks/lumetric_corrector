@@ -5,6 +5,18 @@ All notable changes to the Lumetric Corrector project will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-06-23
+
+### Fixed
+- Fixed: Restored macOS compatibility, slider changes now correctly affect the image
+- Fixed: GLSL shader syntax error (`sampler2d` → `sampler2D`)
+- Improved: Texture sampling function for macOS compatibility (`texture2D` instead of `texture` on OpenGL)
+
+### Improved
+- Enhanced platform detection and better debug logging
+- More robust shader parameter validation
+- Improved error handling during shader compilation
+
 ## [1.0.0] - 2025-04-23
 
 ### Added

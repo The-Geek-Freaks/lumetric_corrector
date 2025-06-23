@@ -3,7 +3,7 @@
   Eine Farbkorrektur-Lösung inspiriert von Adobe Lumetri Color
   
   Autor: TheGeekFreaks
-  Version: 1.2.0
+  Version: 1.3.1
   Lizenz: GPLv3
 ]]
 
@@ -18,251 +18,6 @@ end)
 if not success then
     -- FFI nicht verfügbar, kein Problem, wir haben Fallbacks
     ffi = nil
-end
-
--- JSON-Modul für Export/Import von Einstellungen
-local json = {}
-
--- Einfache JSON-Implementierung für Lua
--- Vereinfachte Version ohne komplexe Escape-Sequenzen
-do
-    -- Bestimmt, ob ein Objekt ein Array oder eine Tabelle ist
-    local function kind_of(obj)
-        if type(obj) ~= 'table' then return type(obj) end
-        local count = 0
-        for _ in pairs(obj) do count = count + 1 end
-        if count == 0 then return 'table' end
-        
-        local is_array = true
-        for k, _ in pairs(obj) do
-            if type(k) ~= 'number' or k <= 0 or math.floor(k) ~= k then
-                is_array = false
-                break
-            end
-        end
-        if is_array then return 'array' else return 'table' end
-    end
-    
-    -- Stringifiziert ein Objekt zu JSON
-    function json.stringify(obj)
-        local result = {}
-        local t = type(obj)
-        
-        if t == 'table' then
-            local k = kind_of(obj)
-            if k == 'array' then
-                result[#result+1] = '['
-                for i, v in ipairs(obj) do
-                    if i > 1 then result[#result+1] = ',' end
-                    result[#result+1] = json.stringify(v)
-                end
-                result[#result+1] = ']'
-            else
-                result[#result+1] = '{'
-                local first = true
-                for k, v in pairs(obj) do
-                    if not first then result[#result+1] = ',' end
-                    first = false
-                    result[#result+1] = '"' .. tostring(k) .. '":'
-                    result[#result+1] = json.stringify(v)
-                end
-                result[#result+1] = '}'
-            end
-        elseif t == 'string' then
-            -- Einfache String-Escape-Funktion
-            local s = obj:gsub('\\', '\\\\')
-            s = s:gsub('"', '\\"')
-            s = s:gsub('\n', '\\n')
-            s = s:gsub('\r', '\\r')
-            s = s:gsub('\t', '\\t')
-            result[#result+1] = '"' .. s .. '"'
-        elseif t == 'number' then
-            result[#result+1] = tostring(obj)
-        elseif t == 'boolean' then
-            result[#result+1] = tostring(obj)
-        elseif t == 'nil' then
-            result[#result+1] = 'null'
-        else
-            error('Nicht unterstützter Typ: ' .. t)
-        end
-        
-        return table.concat(result)
-    end
-
-    -- JSON Parser Funktion
-    function json.parse(str)
-        local i = 1
-        local t = {}
-        
-        -- Hilfsfunktionen für den Parser
-        local function skip_whitespace()
-            i = string.find(str, "[^%s]", i) or #str+1
-        end
-        
-        local function parse_string()
-            local start_i = i
-            i = i + 1 -- Überspringe das öffnende Anführungszeichen
-            local result = ""
-            
-            while i <= #str do
-                local c = str:sub(i, i)
-                
-                if c == '"' then
-                    i = i + 1
-                    return result
-                elseif c == '\\' and i < #str then
-                    local next_c = str:sub(i+1, i+1)
-                    if next_c == '"' then
-                        result = result .. '"'
-                    elseif next_c == '\\' then
-                        result = result .. '\\'
-                    elseif next_c == '/' then
-                        result = result .. '/'
-                    elseif next_c == 'b' then
-                        result = result .. '\b'
-                    elseif next_c == 'f' then
-                        result = result .. '\f'
-                    elseif next_c == 'n' then
-                        result = result .. '\n'
-                    elseif next_c == 'r' then
-                        result = result .. '\r'
-                    elseif next_c == 't' then
-                        result = result .. '\t'
-                    else
-                        result = result .. next_c
-                    end
-                    i = i + 2
-                else
-                    result = result .. c
-                    i = i + 1
-                end
-            end
-            
-            error("Unerwartetes Ende des Strings bei Position " .. start_i)
-        end
-        
-        local function parse_number()
-            local start_i = i
-            local end_i = string.find(str, "[^-0-9.eE+]", i) or #str+1
-            local num_str = str:sub(i, end_i-1)
-            i = end_i
-            
-            local num = tonumber(num_str)
-            if not num then
-                error("Ungültige Zahl bei Position " .. start_i .. ": " .. num_str)
-            end
-            return num
-        end
-        
-        local function parse_value()
-            skip_whitespace()
-            
-            local c = str:sub(i, i)
-            
-            if c == '{' then
-                return parse_object()
-            elseif c == '[' then
-                return parse_array()
-            elseif c == '"' then
-                return parse_string()
-            elseif c == '-' or (c >= '0' and c <= '9') then
-                return parse_number()
-            elseif c == 't' and str:sub(i, i+3) == "true" then
-                i = i + 4
-                return true
-            elseif c == 'f' and str:sub(i, i+4) == "false" then
-                i = i + 5
-                return false
-            elseif c == 'n' and str:sub(i, i+3) == "null" then
-                i = i + 4
-                return nil
-            else
-                error("Unerwartetes Zeichen bei Position " .. i .. ": " .. c)
-            end
-        end
-        
-        function parse_object()
-            local obj = {}
-            i = i + 1 -- Überspringe das öffnende {
-            
-            skip_whitespace()
-            if str:sub(i, i) == "}" then
-                i = i + 1
-                return obj
-            end
-            
-            while i <= #str do
-                skip_whitespace()
-                
-                if str:sub(i, i) ~= '"' then
-                    error("Schlüssel erwartet bei Position " .. i)
-                end
-                
-                local key = parse_string()
-                
-                skip_whitespace()
-                if str:sub(i, i) ~= ':' then
-                    error("':' erwartet bei Position " .. i)
-                end
-                i = i + 1
-                
-                local value = parse_value()
-                obj[key] = value
-                
-                skip_whitespace()
-                local c = str:sub(i, i)
-                if c == "}" then
-                    i = i + 1
-                    return obj
-                elseif c == "," then
-                    i = i + 1
-                else
-                    error("',' oder '}' erwartet bei Position " .. i)
-                end
-            end
-            
-            error("Unerwartetes Ende des Objekts")
-        end
-        
-        function parse_array()
-            local arr = {}
-            i = i + 1 -- Überspringe das öffnende [
-            
-            skip_whitespace()
-            if str:sub(i, i) == "]" then
-                i = i + 1
-                return arr
-            end
-            
-            while i <= #str do
-                local value = parse_value()
-                table.insert(arr, value)
-                
-                skip_whitespace()
-                local c = str:sub(i, i)
-                if c == "]" then
-                    i = i + 1
-                    return arr
-                elseif c == "," then
-                    i = i + 1
-                else
-                    error("',' oder ']' erwartet bei Position " .. i)
-                end
-            end
-            
-            error("Unerwartetes Ende des Arrays")
-        end
-        
-        -- Starte den Parser
-        local result = parse_value()
-        skip_whitespace()
-        
-        if i <= #str then
-            error("Unerwartete Zeichen nach Ende des JSON bei Position " .. i)
-        end
-        
-        return result
-    end
 end
 
 -- Minimaler Filter, der praktisch nichts tut - ein "Null-Filter"
@@ -425,166 +180,6 @@ local translations = {
 -- Schaltet Debug-Logs ein/aus
 local DEBUG = true
 
--- Pfad für benutzerdefinierte Voreinstellungen
-local function get_preset_directory()
-    local platform = get_platform()
-    local dir
-    
-    if platform == "windows" then
-        dir = os.getenv("APPDATA") .. "\\obs-studio\\lumetric-presets\\"
-    elseif platform == "macos" then
-        dir = os.getenv("HOME") .. "/Library/Application Support/obs-studio/lumetric-presets/"
-    else -- Linux
-        dir = os.getenv("HOME") .. "/.config/obs-studio/lumetric-presets/"
-    end
-    
-    -- Versuche, das Verzeichnis zu erstellen, falls es nicht existiert
-    local success = os.execute("mkdir \"" .. dir .. "\"")
-    
-    return dir
-end
-
--- Funktionen für Export/Import von Einstellungen
-local function export_settings(data, preset_name)
-    if not data then return false, "Keine Daten zum Exportieren vorhanden" end
-    if not preset_name or preset_name == "" then return false, "Kein Preset-Name angegeben" end
-    
-    -- Erstelle ein Objekt mit allen relevanten Einstellungen
-    local settings = {}
-    
-    -- Grundlegende Korrekturen
-    settings.exposure = data.exposure or 0
-    settings.contrast = data.contrast or 0
-    settings.brightness = data.brightness or 0
-    settings.highlights = data.highlights or 0
-    settings.shadows = data.shadows or 0
-    settings.whites = data.whites or 0
-    settings.blacks = data.blacks or 0
-    settings.highlight_fade = data.highlight_fade or 0
-    settings.shadow_fade = data.shadow_fade or 0
-    settings.black_lift = data.black_lift or 0
-    
-    -- Weißabgleich
-    settings.temperature = data.temperature or 0
-    settings.tint = data.tint or 0
-    
-    -- Farbe
-    settings.saturation = data.saturation or 0
-    settings.vibrance = data.vibrance or 0
-    
-    -- Split-Toning (neu)
-    settings.split_shadows_hue = data.split_shadows_hue or 0
-    settings.split_shadows_sat = data.split_shadows_sat or 0
-    settings.split_highlights_hue = data.split_highlights_hue or 0
-    settings.split_highlights_sat = data.split_highlights_sat or 0
-    settings.split_balance = data.split_balance or 0
-    
-    -- Vignette
-    settings.vignette_amount = data.vignette_amount or 0
-    settings.vignette_radius = data.vignette_radius or 0.5
-    settings.vignette_feather = data.vignette_feather or 0.5
-    settings.vignette_shape = data.vignette_shape or 0
-    
-    -- Film Grain
-    settings.grain_amount = data.grain_amount or 0
-    settings.grain_size = data.grain_size or 0.5
-    
-    -- Schärfung (neu)
-    settings.sharpen_amount = data.sharpen_amount or 0
-    settings.sharpen_radius = data.sharpen_radius or 0.5
-    
-    -- Bloom (neu)
-    settings.bloom_amount = data.bloom_amount or 0
-    settings.bloom_threshold = data.bloom_threshold or 0.8
-    
-    -- Farbräder
-    settings.shadows_color_r = data.shadows_color_r or 0
-    settings.shadows_color_g = data.shadows_color_g or 0
-    settings.shadows_color_b = data.shadows_color_b or 0
-    settings.midtones_color_r = data.midtones_color_r or 0
-    settings.midtones_color_g = data.midtones_color_g or 0
-    settings.midtones_color_b = data.midtones_color_b or 0
-    settings.highlights_color_r = data.highlights_color_r or 0
-    settings.highlights_color_g = data.highlights_color_g or 0
-    settings.highlights_color_b = data.highlights_color_b or 0
-    
-    -- Metadaten
-    settings.name = preset_name
-    settings.created = os.date("%Y-%m-%d %H:%M:%S")
-    settings.version = "1.2.0"
-    
-    -- Konvertiere zu JSON
-    local json_str = json.stringify(settings)
-    
-    -- Speichere in Datei
-    local preset_dir = get_preset_directory()
-    local filename = preset_dir .. preset_name .. ".json"
-    
-    local file = io.open(filename, "w")
-    if not file then
-        return false, "Konnte Datei nicht erstellen: " .. filename
-    end
-    
-    file:write(json_str)
-    file:close()
-    
-    return true, "Preset erfolgreich gespeichert: " .. preset_name
-end
-
-local function import_settings(preset_name)
-    if not preset_name or preset_name == "" then return nil, "Kein Preset-Name angegeben" end
-    
-    local preset_dir = get_preset_directory()
-    local filename = preset_dir .. preset_name .. ".json"
-    
-    local file = io.open(filename, "r")
-    if not file then
-        return nil, "Preset nicht gefunden: " .. preset_name
-    end
-    
-    local content = file:read("*all")
-    file:close()
-    
-    -- Parse JSON
-    local success, settings = pcall(function() return json.parse(content) end)
-    
-    if not success then
-        return nil, "Fehler beim Parsen des Presets: " .. tostring(settings)
-    end
-    
-    return settings, "Preset erfolgreich geladen: " .. preset_name
-end
-
-local function list_custom_presets()
-    local preset_dir = get_preset_directory()
-    local presets = {}
-    
-    -- Versuche, alle .json-Dateien im Preset-Verzeichnis zu finden
-    local handle
-    local platform = get_platform()
-    
-    if platform == "windows" then
-        local cmd = "dir /b \"" .. preset_dir .. "*.json\""
-        handle = io.popen(cmd)
-    else
-        local cmd = "ls -1 \"" .. preset_dir .. "\" | grep \"\\.json$\""
-        handle = io.popen(cmd)
-    end
-    
-    if handle then
-        for line in handle:lines() do
-            -- Entferne .json-Erweiterung
-            local preset_name = line:match("(.+)%.json")
-            if preset_name then
-                table.insert(presets, preset_name)
-            end
-        end
-        handle:close()
-    end
-    
-    return presets
-end
-
 -- Plattformerkennung
 local function get_platform()
     local os_name = ffi and ffi.os or "Windows"
@@ -597,8 +192,21 @@ local function get_platform()
     end
 end
 
+-- Verbesserte Debug-Funktion mit Plattforminformationen
+local function log_debug_platform(message)
+    if DEBUG then
+        local platform_info = "[" .. PLATFORM .. "]" 
+        obs.script_log(obs.LOG_DEBUG, platform_info .. " " .. tostring(message))
+    end
+end
+
 local PLATFORM = get_platform()
 local IS_MACOS = PLATFORM == "macos"
+
+-- Debug-Ausgabe der erkannten Plattform
+if DEBUG then
+    obs.script_log(obs.LOG_INFO, "[Lumetric Corrector] Erkannte Plattform: " .. PLATFORM)
+end
 
 -- Kompatible Zeitfunktion (Sekunden als float)
 local function get_time_s()
@@ -611,23 +219,10 @@ local function get_time_s()
     end
 end
 
--- Hilfsfunktion zum Prüfen, ob eine Datei existiert
-local function file_exists(path)
-    local file = io.open(path, "r")
-    if file then
-        file:close()
-        return true
-    end
-    return false
-end
-
 -- Shader mit erweiterten Funktionen (Vignette und Film Grain)
 -- Wir definieren verschiedene Shader-Versionen für verschiedene Plattformen
 
 -- HLSL-Shader für Windows (Standard)
--- Direkt eingebetteter Shader-Code ohne externe Abhängigkeiten
-
--- Korrigierter HLSL-Shader-Code mit funktionierenden Split-Toning, Schärfung und Bloom-Effekten
 local hlsl_shader_code = [[
 uniform float4x4 ViewProj;
 uniform texture2d image;
@@ -665,25 +260,6 @@ uniform float tint;
 // Farbe
 uniform float saturation;
 uniform float vibrance;
-
-// Split-Toning (neu)
-uniform float split_shadows_hue;
-uniform float split_shadows_sat;
-uniform float split_highlights_hue;
-uniform float split_highlights_sat;
-uniform float split_balance;
-
-// Schärfung (neu)
-uniform float sharpen_amount;
-uniform float sharpen_radius;
-
-// Bloom (neu)
-uniform float bloom_amount;
-uniform float bloom_threshold;
-
-// Texel-Size für Schärfung und Bloom
-uniform float width;
-uniform float height;
 
 // Vignette-Effekt
 uniform float vignette_amount;
@@ -754,9 +330,9 @@ float3 apply_saturation(float3 color, float sat) {
     return lerp(float3(gray, gray, gray), color, 1.0 + sat);
 }
 
-// Hilfsfunktion für Vibrance
+// Hilfsfunktion für Lebendigkeit
 float3 apply_vibrance(float3 color, float vibrance_value) {
-    float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+    float luminance = dot(color, float3(0.299, 0.587, 0.114));
     float maximum = max(max(color.r, color.g), color.b);
     float minimum = min(min(color.r, color.g), color.b);
     float saturation = (maximum - minimum) / max(maximum, 0.0001);
@@ -764,122 +340,48 @@ float3 apply_vibrance(float3 color, float vibrance_value) {
     return lerp(float3(luminance, luminance, luminance), color, 1.0 + (vibrance_value * (1.0 - saturation)));
 }
 
-// HSV <-> RGB Konvertierung für Split-Toning
-float3 hsv_to_rgb(float3 hsv) {
-    float h = hsv.x;
-    float s = hsv.y;
-    float v = hsv.z;
-    
-    if (s <= 0.0) return float3(v, v, v);
-    
-    h = frac(h) * 6.0;
-    int i = int(h);
-    float f = h - float(i);
-    float p = v * (1.0 - s);
-    float q = v * (1.0 - s * f);
-    float t = v * (1.0 - s * (1.0 - f));
-    
-    if (i == 0) return float3(v, t, p);
-    else if (i == 1) return float3(q, v, p);
-    else if (i == 2) return float3(p, v, t);
-    else if (i == 3) return float3(p, q, v);
-    else if (i == 4) return float3(t, p, v);
-    else return float3(v, p, q);
-}
-
-// Split-Toning anwenden
-float3 apply_split_toning(float3 color, float shadows_hue, float shadows_sat, float highlights_hue, float highlights_sat, float balance) {
-    float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
-    
-    // Balance-Faktor anwenden (-1 bis +1 zu 0 bis 1)
-    float highlights_weight = saturate(luminance + balance * 0.5);
-    float shadows_weight = 1.0 - highlights_weight;
-    
-    // Schatten-Farbe
-    float3 shadows_color = hsv_to_rgb(float3(shadows_hue, shadows_sat, 1.0));
-    
-    // Lichter-Farbe
-    float3 highlights_color = hsv_to_rgb(float3(highlights_hue, highlights_sat, 1.0));
-    
-    // Mische die Farben basierend auf Luminanz
-    float3 toned_color = color * (1.0 - shadows_sat * shadows_weight - highlights_sat * highlights_weight)
-                       + shadows_color * shadows_weight * shadows_sat
-                       + highlights_color * highlights_weight * highlights_sat;
-    
-    return toned_color;
-}
-
-// Schärfung anwenden
-float3 apply_sharpen(texture2d tex, float2 uv, float2 texel_size, float amount, float radius) {
-    float3 center = tex.Sample(textureSampler, uv).rgb;
-    
-    // 5-Punkt-Laplace-Filter
-    float3 blur = float3(0, 0, 0);
-    blur += tex.Sample(textureSampler, uv + float2(-radius * texel_size.x, 0)).rgb;
-    blur += tex.Sample(textureSampler, uv + float2(radius * texel_size.x, 0)).rgb;
-    blur += tex.Sample(textureSampler, uv + float2(0, -radius * texel_size.y)).rgb;
-    blur += tex.Sample(textureSampler, uv + float2(0, radius * texel_size.y)).rgb;
-    blur *= 0.25;
-    
-    // Unschärfe-Maske
-    float3 sharpen = center + (center - blur) * amount;
-    
-    return sharpen;
-}
-
-// Bloom-Effekt anwenden
-float3 apply_bloom(texture2d tex, float2 uv, float2 texel_size, float amount, float threshold) {
-    float3 color = tex.Sample(textureSampler, uv).rgb;
-    
-    // Extrahiere helle Bereiche über dem Schwellenwert
-    float brightness = dot(color, float3(0.2126, 0.7152, 0.0722));
-    float3 bright_pass = color * saturate(brightness - threshold);
-    
-    // Einfacher 9-Punkt-Blur für Bloom
-    float3 bloom = float3(0, 0, 0);
-    float total_weight = 0.0;
-    
-    for (int y = -2; y <= 2; y++) {
-        for (int x = -2; x <= 2; x++) {
-            float weight = 1.0 / (1.0 + x*x + y*y);
-            float2 offset = float2(x, y) * texel_size * 2.0;
-            bloom += tex.Sample(textureSampler, uv + offset).rgb * weight * saturate(brightness - threshold);
-            total_weight += weight;
-        }
-    }
-    
-    bloom /= total_weight;
-    
-    // Addiere den Bloom-Effekt zur Originalfarbe
-    return color + bloom * amount;
-}
-
-// Vignette-Effekt anwenden
+// Vignette anwenden
 float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float feather, float shape) {
-    // Zentriere die UV-Koordinaten
-    float2 centered_uv = uv - 0.5;
+    float2 center = float2(0.5, 0.5);
     
-    // Passe die Form an (0 = Kreis, 1 = mehr rechteckig)
-    float2 shaped_uv = pow(abs(centered_uv), float2(2.0 - shape * 0.5, 2.0 - shape * 0.5));
-    float dist = pow(shaped_uv.x + shaped_uv.y, 1.0 / (2.0 - shape * 0.5));
+    // Anpassbare Form zwischen Kreis und mehr rechteckiger Form
+    float2 d = abs(uv - center);
+    // Bei 0.0 normal euklidische Distanz (Kreis)
+    // Bei 1.0 mehr zu Manhattan-Distanz (Rechteckiger)
+    float dist = lerp(
+        length(d),                       // Kreis
+        sqrt(d.x*d.x*1.5 + d.y*d.y*0.5), // Horizontales Oval
+        shape
+    );
     
-    // Berechne den Vignette-Faktor
+    // Vignette stärke berechnen
     float vignette = smoothstep(radius, radius - feather, dist);
-    vignette = 1.0 - (1.0 - vignette) * amount;
     
-    return color * vignette;
+    // Auf Bild anwenden
+    return color * lerp(1.0, vignette, amount);
 }
 
-// Farbrad-Anwendung
-float3 apply_color_balance(float3 color, float3 shadows_color, float3 midtones_color, float3 highlights_color) {
-    // Luminanz berechnen
-    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
+// Film Grain wurde entfernt - es verursachte "tickendes" Verhalten
+
+
+// Berechnet die Gewichtung für die verschiedenen Tonwertbereiche
+float3 calculate_weights(float luma) {
+    // Schatten: Abnehmende Gewichtung von Schwarz bis zu den Mitteltönen
+    float shadow_weight = 1.0 - smoothstep(0.0, 0.5, luma);
     
-    // Gewichtung basierend auf Luminanz
-    float3 weights;
-    weights.x = saturate(1.0 - luma * 2.0);           // Schatten: 1.0 bei Luminanz 0, 0.0 bei Luminanz 0.5+
-    weights.y = saturate(1.0 - abs(luma - 0.5) * 2.0); // Mitteltöne: 1.0 bei Luminanz 0.5, 0.0 bei 0 und 1
-    weights.z = saturate((luma - 0.5) * 2.0);         // Lichter: 1.0 bei Luminanz 1, 0.0 bei Luminanz 0.5-
+    // Lichter: Zunehmende Gewichtung von den Mitteltönen bis zu Weiß
+    float highlight_weight = smoothstep(0.5, 1.0, luma);
+    
+    // Mitteltöne: Im mittleren Bereich am stärksten
+    float midtone_weight = 1.0 - shadow_weight - highlight_weight;
+    
+    return float3(shadow_weight, midtone_weight, highlight_weight);
+}
+
+// Tonwert-basierte Farbkorrektur anwenden
+float3 apply_color_balance(float3 color, float3 shadows_color, float3 midtones_color, float3 highlights_color) {
+    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
+    float3 weights = calculate_weights(luma);
     
     // Additive Farbmischung mit Gewichtung je nach Tonwertbereich
     float3 result = color;
@@ -961,23 +463,6 @@ float4 PSDefault(VertDataOut v_in) : TARGET
     result = apply_saturation(result, saturation);
     result = apply_vibrance(result, vibrance);
     
-    // Split-Toning anwenden
-    if (split_shadows_sat > 0.0 || split_highlights_sat > 0.0) {
-        result = apply_split_toning(result, split_shadows_hue, split_shadows_sat, split_highlights_hue, split_highlights_sat, split_balance);
-    }
-    
-    // Schärfung anwenden
-    if (sharpen_amount > 0.0) {
-        float2 texel_size = float2(1.0 / width, 1.0 / height);
-        result = apply_sharpen(image, v_in.uv, texel_size, sharpen_amount, sharpen_radius);
-    }
-    
-    // Bloom anwenden
-    if (bloom_amount > 0.0) {
-        float2 texel_size = float2(1.0 / width, 1.0 / height);
-        result = apply_bloom(image, v_in.uv, texel_size, bloom_amount, bloom_threshold);
-    }
-    
     // Vignette anwenden
     if (vignette_amount > 0.0) {
         result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
@@ -1004,7 +489,7 @@ technique Draw
 -- Verbesserter GLSL-Shader für macOS mit erweiterten Kompatibilitätsdefinitionen
 local glsl_shader_code = [[
 uniform mat4 ViewProj;
-uniform sampler2d image;
+uniform sampler2D image; // Korrigiert: sampler2D statt sampler2d
 
 // Erweiterte Kompatibilitätsdefinitionen für macOS GLSL
 #ifdef GS_PLATFORM_OPENGL
@@ -1179,7 +664,12 @@ float3 apply_color_balance(float3 color, float3 shadows_col, float3 midtones_col
 
 float4 PSDefault(VertDataOut v_in) : TARGET
 {
+    // Korrigiert: texture2D für macOS Kompatibilität
+    #ifdef GS_PLATFORM_OPENGL
+    float4 color = texture2D(image, v_in.uv);
+    #else
     float4 color = texture(image, v_in.uv);
+    #endif
     float3 result = color.rgb;
 
     // Belichtung
@@ -1272,8 +762,14 @@ technique Draw
 -- Parameter an den Shader übergeben
 function set_shader_params(data)
     if not data or not data.params then 
-        log_debug("Keine Daten oder Parameter verfügbar")
+        log_debug_platform("Keine Daten oder Parameter verfügbar")
         return 
+    end
+    
+    -- Überprüfe Shader-Parameter
+    if not check_shader_params(data) then
+        log_debug_platform("Shader-Parameter-Validierung fehlgeschlagen")
+        return
     end
     
     -- Alle Parameter setzen
@@ -1405,110 +901,6 @@ function set_shader_params(data)
         end
     end
     
-    -- Split-Toning Parameter setzen
-    if data.params.split_shadows_hue then 
-        if data.last_split_shadows_hue ~= data.split_shadows_hue then
-            obs.gs_effect_set_float(data.params.split_shadows_hue, data.split_shadows_hue)
-            data.last_split_shadows_hue = data.split_shadows_hue
-        end
-    end
-    
-    if data.params.split_shadows_sat then 
-        if data.last_split_shadows_sat ~= data.split_shadows_sat then
-            obs.gs_effect_set_float(data.params.split_shadows_sat, data.split_shadows_sat)
-            data.last_split_shadows_sat = data.split_shadows_sat
-        end
-    end
-    
-    if data.params.split_highlights_hue then 
-        if data.last_split_highlights_hue ~= data.split_highlights_hue then
-            obs.gs_effect_set_float(data.params.split_highlights_hue, data.split_highlights_hue)
-            data.last_split_highlights_hue = data.split_highlights_hue
-        end
-    end
-    
-    if data.params.split_highlights_sat then 
-        if data.last_split_highlights_sat ~= data.split_highlights_sat then
-            obs.gs_effect_set_float(data.params.split_highlights_sat, data.split_highlights_sat)
-            data.last_split_highlights_sat = data.split_highlights_sat
-        end
-    end
-    
-    if data.params.split_balance then 
-        if data.last_split_balance ~= data.split_balance then
-            obs.gs_effect_set_float(data.params.split_balance, data.split_balance)
-            data.last_split_balance = data.split_balance
-        end
-    end
-    
-    -- Schärfung und Bloom Parameter setzen
-    if data.params.sharpen_amount then 
-        if data.last_sharpen_amount ~= data.sharpen_amount then
-            obs.gs_effect_set_float(data.params.sharpen_amount, data.sharpen_amount)
-            data.last_sharpen_amount = data.sharpen_amount
-        end
-    end
-    
-    if data.params.sharpen_radius then 
-        if data.last_sharpen_radius ~= data.sharpen_radius then
-            obs.gs_effect_set_float(data.params.sharpen_radius, data.sharpen_radius)
-            data.last_sharpen_radius = data.sharpen_radius
-        end
-    end
-    
-    if data.params.bloom_amount then 
-        if data.last_bloom_amount ~= data.bloom_amount then
-            obs.gs_effect_set_float(data.params.bloom_amount, data.bloom_amount)
-            data.last_bloom_amount = data.bloom_amount
-        end
-    end
-    
-    if data.params.bloom_threshold then 
-        if data.last_bloom_threshold ~= data.bloom_threshold then
-            obs.gs_effect_set_float(data.params.bloom_threshold, data.bloom_threshold)
-            data.last_bloom_threshold = data.bloom_threshold
-        end
-    end
-    
-    -- Texel-Size für Schärfung und Bloom
-    local width_param = obs.gs_effect_get_param_by_name(data.effect, "width")
-    local height_param = obs.gs_effect_get_param_by_name(data.effect, "height")
-    
-    if width_param and height_param then
-        local source = obs.obs_filter_get_target(data.source)
-        local source_width = 1920  -- Fallback
-        local source_height = 1080 -- Fallback
-        
-        if source then
-            source_width = obs.obs_source_get_base_width(source)
-            source_height = obs.obs_source_get_base_height(source)
-        end
-        
-        if source_width <= 0 or source_height <= 0 then
-            -- Versuche es mit der Parent-Quelle
-            local parent = obs.obs_filter_get_parent(data.source)
-            if parent then
-                source_width = obs.obs_source_get_base_width(parent)
-                source_height = obs.obs_source_get_base_height(parent)
-            end
-            
-            -- Wenn immer noch ungültig, verwende Fallback und reduziere Log-Spam
-            if source_width <= 0 or source_height <= 0 then
-                -- Nur alle 5 Sekunden loggen, um Spam zu vermeiden
-                local current_time = get_time_s()
-                if not data.last_size_log_time or (current_time - data.last_size_log_time) > 5 then
-                    log_debug("Target hat keine gültige Größe, verwende Fallback: 1920x1080")
-                    data.last_size_log_time = current_time
-                end
-                source_width = 1920
-                source_height = 1080
-            end
-        end
-        
-        obs.gs_effect_set_float(width_param, source_width)
-        obs.gs_effect_set_float(height_param, source_height)
-    end
-    
     -- Farbrad-Parameter setzen (nur wenn sie existieren)
     if data.params.shadows_color_r and data.shadows_color_r ~= nil then 
         if data.last_shadows_color_r ~= data.shadows_color_r then
@@ -1578,18 +970,6 @@ local function log_debug(message)
     if DEBUG then
         local platform_info = IS_MACOS and "[macOS]" or "[Windows]"
         print("[Lumetric Corrector] " .. platform_info .. " " .. message)
-    end
-end
-
--- Erweiterte Fehlerbehandlung für Shader
-local function handle_shader_error()
-    local error = obs.gs_get_last_error()
-    if error ~= nil then
-        log_debug("Shader-Fehler: " .. error)
-        return error
-    else
-        log_debug("Unbekannter Shader-Fehler ohne Fehlermeldung")
-        return "Unbekannter Fehler"
     end
 end
 
@@ -1978,43 +1358,6 @@ source_info.get_properties = function(data)
     
     obs.obs_properties_add_group(props, "color", _("color"), obs.OBS_GROUP_NORMAL, color_group)
     
-    -- Split-Toning
-    local split_toning_group = obs.obs_properties_create()
-    
-    local prop_split_shadows_hue = obs.obs_properties_add_float_slider(split_toning_group, "split_shadows_hue", "Schatten Farbton", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_split_shadows_hue, "Farbton für die Schatten beim Split-Toning. 0=Rot, 0.33=Grün, 0.66=Blau.")
-    
-    local prop_split_shadows_sat = obs.obs_properties_add_float_slider(split_toning_group, "split_shadows_sat", "Schatten Sättigung", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_split_shadows_sat, "Sättigung der Farbe für die Schatten beim Split-Toning.")
-    
-    local prop_split_highlights_hue = obs.obs_properties_add_float_slider(split_toning_group, "split_highlights_hue", "Lichter Farbton", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_split_highlights_hue, "Farbton für die Lichter beim Split-Toning. 0=Rot, 0.33=Grün, 0.66=Blau.")
-    
-    local prop_split_highlights_sat = obs.obs_properties_add_float_slider(split_toning_group, "split_highlights_sat", "Lichter Sättigung", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_split_highlights_sat, "Sättigung der Farbe für die Lichter beim Split-Toning.")
-    
-    local prop_split_balance = obs.obs_properties_add_float_slider(split_toning_group, "split_balance", "Balance", -1.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_split_balance, "Balance zwischen Schatten und Lichtern beim Split-Toning. Negative Werte verschieben die Balance zu den Schatten, positive zu den Lichtern.")
-    
-    obs.obs_properties_add_group(props, "split_toning", "Split-Toning", obs.OBS_GROUP_NORMAL, split_toning_group)
-    
-    -- Schärfung und Bloom
-    local effects_group = obs.obs_properties_create()
-    
-    local prop_sharpen_amount = obs.obs_properties_add_float_slider(effects_group, "sharpen_amount", "Schärfung", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_sharpen_amount, "Stärke der Schärfung. Höhere Werte führen zu schärferen Kanten.")
-    
-    local prop_sharpen_radius = obs.obs_properties_add_float_slider(effects_group, "sharpen_radius", "Schärfungsradius", 1.0, 3.0, 0.1)
-    obs.obs_property_set_long_description(prop_sharpen_radius, "Radius der Schärfung. Höhere Werte führen zu breiteren Kanten.")
-    
-    local prop_bloom_amount = obs.obs_properties_add_float_slider(effects_group, "bloom_amount", "Bloom-Stärke", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_bloom_amount, "Stärke des Bloom-Effekts. Höhere Werte führen zu stärkerem Leuchten.")
-    
-    local prop_bloom_threshold = obs.obs_properties_add_float_slider(effects_group, "bloom_threshold", "Bloom-Schwellenwert", 0.5, 0.95, 0.01)
-    obs.obs_property_set_long_description(prop_bloom_threshold, "Schwellenwert für den Bloom-Effekt. Nur Pixel über diesem Helligkeitswert werden zum Leuchten gebracht.")
-    
-    obs.obs_properties_add_group(props, "effects", "Effekte", obs.OBS_GROUP_NORMAL, effects_group)
-    
     -- Vignette
     local vignette_group = obs.obs_properties_create()
     
@@ -2101,19 +1444,6 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "highlights_color_r", 0.0)
     obs.obs_data_set_default_double(settings, "highlights_color_g", 0.0)
     obs.obs_data_set_default_double(settings, "highlights_color_b", 0.0)
-    
-    -- Split-Toning Standardwerte
-    obs.obs_data_set_default_double(settings, "split_shadows_hue", 0.6) -- Bläulich
-    obs.obs_data_set_default_double(settings, "split_shadows_sat", 0.0)
-    obs.obs_data_set_default_double(settings, "split_highlights_hue", 0.1) -- Gelblich/Orange
-    obs.obs_data_set_default_double(settings, "split_highlights_sat", 0.0)
-    obs.obs_data_set_default_double(settings, "split_balance", 0.0)
-    
-    -- Effekte Standardwerte
-    obs.obs_data_set_default_double(settings, "sharpen_amount", 0.0)
-    obs.obs_data_set_default_double(settings, "sharpen_radius", 1.0)
-    obs.obs_data_set_default_double(settings, "bloom_amount", 0.0)
-    obs.obs_data_set_default_double(settings, "bloom_threshold", 0.8)
 end
 
 -- Update-Funktion für Filtereinstellungen
@@ -2155,19 +1485,6 @@ source_info.update = function(data, settings)
     data.highlights_color_r = obs.obs_data_get_double(settings, "highlights_color_r")
     data.highlights_color_g = obs.obs_data_get_double(settings, "highlights_color_g")
     data.highlights_color_b = obs.obs_data_get_double(settings, "highlights_color_b")
-    
-    -- Split-Toning Parameter
-    data.split_shadows_hue = obs.obs_data_get_double(settings, "split_shadows_hue")
-    data.split_shadows_sat = obs.obs_data_get_double(settings, "split_shadows_sat")
-    data.split_highlights_hue = obs.obs_data_get_double(settings, "split_highlights_hue")
-    data.split_highlights_sat = obs.obs_data_get_double(settings, "split_highlights_sat")
-    data.split_balance = obs.obs_data_get_double(settings, "split_balance")
-    
-    -- Effekt-Parameter
-    data.sharpen_amount = obs.obs_data_get_double(settings, "sharpen_amount")
-    data.sharpen_radius = obs.obs_data_get_double(settings, "sharpen_radius")
-    data.bloom_amount = obs.obs_data_get_double(settings, "bloom_amount")
-    data.bloom_threshold = obs.obs_data_get_double(settings, "bloom_threshold")
     
     -- Einstellungen speichern
     data.settings = settings
@@ -2289,8 +1606,6 @@ source_info.video_render_preview = function(data)
     end
 end
 
-
-
 -- Filter erstellen mit allen Parametern
 source_info.create = function(settings, source)
     local data = {}
@@ -2349,27 +1664,34 @@ source_info.create = function(settings, source)
         -- Plattformspezifische Shader-Auswahl
         local platform = get_platform()
         if platform == "macos" then
-            log_debug("macOS erkannt, verwende verbesserten GLSL-Shader")
+            log_debug_platform("macOS erkannt, verwende verbesserten GLSL-Shader")
             shader_code_to_use = glsl_shader_code
             shader_type = "GLSL"
         end
         
-        -- Direkt eingebetteter korrigierter Shader-Code ohne externe Abhängigkeiten
-        obs.blog(obs.LOG_INFO, "Verwende eingebetteten korrigierten Shader-Code")
-        
         -- HLSL (Windows) oder GLSL (macOS) verwenden
-        log_debug("Erstelle " .. shader_type .. "-Shader")
-        local effect = obs.gs_effect_create(shader_code_to_use, "lumetric_shader", nil)
+        log_debug_platform("Erstelle " .. shader_type .. "-Shader für Plattform: " .. platform)
+        
+        -- Shader-Fehler abfangen
+        local shader_error = nil
+        local effect = obs.gs_effect_create(shader_code_to_use, "lumetric_shader", shader_error)
+        
         if effect == nil then
-            log_debug("Fehler beim Erstellen des " .. shader_type .. "-Shaders: " .. handle_shader_error())
+            local error_msg = shader_error or "Unbekannter Fehler"
+            log_debug_platform("Fehler beim Erstellen des " .. shader_type .. "-Shaders: " .. error_msg)
+            
+            -- Bei macOS zusätzliche Debug-Informationen
+            if platform == "macos" then
+                log_debug_platform("Versuche alternative GLSL-Version für macOS...")
+            end
         else
-            log_debug(shader_type .. "-Shader erfolgreich erstellt")
+            log_debug_platform(shader_type .. "-Shader erfolgreich erstellt")
         end
-        return effect, shader_type
+        return effect, shader_type, platform
     end
     
     local success, err = pcall(function()
-        data.effect, data.shader_type = create_shader()
+        data.effect, data.shader_type, data.platform = create_shader()
         
         if data.effect ~= nil then
             log_debug("Shader vom Typ '" .. (data.shader_type or "unbekannt") .. "' wird verwendet")
@@ -2397,23 +1719,6 @@ source_info.create = function(settings, source)
             data.params.highlight_fade = obs.gs_effect_get_param_by_name(data.effect, "highlight_fade")
             data.params.shadow_fade = obs.gs_effect_get_param_by_name(data.effect, "shadow_fade")
             data.params.black_lift = obs.gs_effect_get_param_by_name(data.effect, "black_lift")
-            
-            -- Split-Toning Parameter
-            data.params.split_shadows_hue = obs.gs_effect_get_param_by_name(data.effect, "split_shadows_hue")
-            data.params.split_shadows_sat = obs.gs_effect_get_param_by_name(data.effect, "split_shadows_sat")
-            data.params.split_highlights_hue = obs.gs_effect_get_param_by_name(data.effect, "split_highlights_hue")
-            data.params.split_highlights_sat = obs.gs_effect_get_param_by_name(data.effect, "split_highlights_sat")
-            data.params.split_balance = obs.gs_effect_get_param_by_name(data.effect, "split_balance")
-            
-            -- Schärfung und Bloom Parameter
-            data.params.sharpen_amount = obs.gs_effect_get_param_by_name(data.effect, "sharpen_amount")
-            data.params.sharpen_radius = obs.gs_effect_get_param_by_name(data.effect, "sharpen_radius")
-            data.params.bloom_amount = obs.gs_effect_get_param_by_name(data.effect, "bloom_amount")
-            data.params.bloom_threshold = obs.gs_effect_get_param_by_name(data.effect, "bloom_threshold")
-            
-            -- Texel-Size Parameter für Schärfung und Bloom
-            data.params.width = obs.gs_effect_get_param_by_name(data.effect, "width")
-            data.params.height = obs.gs_effect_get_param_by_name(data.effect, "height")
             
             -- Farbrad-Parameter
             data.params.shadows_color_r = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_r")
