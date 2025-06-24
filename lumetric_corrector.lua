@@ -3,22 +3,12 @@
   Eine Farbkorrektur-Lösung inspiriert von Adobe Lumetri Color
   
   Autor: TheGeekFreaks
-  Version: 1.3.1
+  Version: 2.0.0
   Lizenz: GPLv3
 ]]
 
 -- OBS Modul einfügen
 local obs = obslua
-
--- FFI für Plattformerkennung
-local ffi = nil
-local success, err = pcall(function()
-    ffi = require("ffi")
-end)
-if not success then
-    -- FFI nicht verfügbar, kein Problem, wir haben Fallbacks
-    ffi = nil
-end
 
 -- Minimaler Filter, der praktisch nichts tut - ein "Null-Filter"
 
@@ -28,6 +18,8 @@ source_info.type = obs.OBS_SOURCE_TYPE_FILTER
 source_info.output_flags = bit.bor(obs.OBS_SOURCE_VIDEO, obs.OBS_SOURCE_CUSTOM_DRAW)
 
 -- Übersetzungen
+local function T(k) return _(k) end
+
 local translations = {
     ["en-US"] = {
         ["lumetric_corrector"] = "Lumetric Corrector",
@@ -58,10 +50,6 @@ local translations = {
         ["vignette_amount"] = "Amount",
         ["vignette_radius"] = "Radius",
         ["vignette_feather"] = "Feathering",
-        ["film_grain"] = "Film Grain",
-        ["grain_amount"] = "Amount",
-        ["grain_size"] = "Size",
-        ["time_seed"] = "Time Seed",
         ["select_preset"] = "Select Preset",
         ["neutral"] = "Neutral",
         ["warm"] = "Warm",
@@ -87,6 +75,20 @@ local translations = {
         ["sunset"] = "Sunset",
         ["moonlight"] = "Moonlight",
         ["vivid_warm"] = "Vivid Warm",
+        
+        -- Neue kreative Presets (v2.0)
+        ["creative_presets"] = "Creative Presets",
+        ["neo_noir"] = "Neo Noir",
+        ["cyberpunk"] = "Cyberpunk",
+        ["retro_film"] = "Retro Film",
+        ["teal_orange"] = "Teal & Orange",
+        ["dreamy_bloom"] = "Dreamy Bloom",
+        ["crisp_clarity"] = "Crisp Clarity",
+        ["horror_atmosphere"] = "Horror Atmosphere",
+        ["pastel_dreams"] = "Pastel Dreams",
+        ["game_stream"] = "Game Stream",
+        ["analog_vhs"] = "Analog VHS",
+        
         ["color_wheels"] = "Color Balance",
         ["shadows_color_r"] = "Shadows Red",
         ["shadows_color_g"] = "Shadows Green",
@@ -97,6 +99,102 @@ local translations = {
         ["highlights_color_r"] = "Highlights Red",
         ["highlights_color_g"] = "Highlights Green",
         ["highlights_color_b"] = "Highlights Blue",
+        
+        -- Split-Toning
+        ["split_toning"] = "Split Toning",
+        ["shadows_red"] = "Shadows Red",
+        ["shadow_red_desc"] = "Red component for shadow toning",
+        ["shadows_green"] = "Shadows Green",
+        ["shadow_green_desc"] = "Green component for shadow toning",
+        ["shadows_blue"] = "Shadows Blue",
+        ["shadow_blue_desc"] = "Blue component for shadow toning",
+        ["shadows_sat"] = "Shadows Saturation",
+        ["shadow_sat_desc"] = "Strength of shadow toning",
+        ["highlights_red"] = "Highlights Red",
+        ["highlight_red_desc"] = "Red component for highlight toning",
+        ["highlights_green"] = "Highlights Green",
+        ["highlight_green_desc"] = "Green component for highlight toning",
+        ["highlights_blue"] = "Highlights Blue",
+        ["highlight_blue_desc"] = "Blue component for highlight toning",
+        ["highlights_sat"] = "Highlights Saturation",
+        ["highlight_sat_desc"] = "Strength of highlight toning",
+        
+        -- Creative Effects
+        ["creative_fx"] = "Creative Effects",
+        ["sharpen"] = "Sharpen",
+        ["sharpen_desc"] = "Local sharpness using unsharp mask",
+        ["bloom"] = "Bloom",
+        ["bloom_desc"] = "Soft glow effect on bright areas",
+        ["halation"] = "Halation",
+        ["halation_desc"] = "Reddish glow on highlights (film look)",
+        
+        -- LUT
+        ["lut"] = "3D LUT",
+        ["lut_file"] = "LUT File",
+        ["lut_file_desc"] = "3D LUT file in CUBE or PNG format (33x33 or 64x64 texture)",
+        ["lut_strength"] = "LUT Strength",
+        ["lut_strength_desc"] = "Strength of the LUT effect",
+        ["basic_presets"] = "--- BASIC PRESETS ---",
+        ["style_presets"] = "--- STYLE PRESETS ---",
+        ["color_mood_presets"] = "--- COLOR MOOD PRESETS ---",
+        ["era_presets"] = "--- ERA PRESETS ---",
+        ["creative_presets"] = "--- CREATIVE PRESETS ---",
+        ["neo_noir"] = "Neo Noir",
+        ["cyberpunk"] = "Cyberpunk",
+        ["retro_film"] = "Retro Film",
+        ["teal_orange"] = "Teal & Orange",
+        ["dreamy_bloom"] = "Dreamy Bloom",
+        ["crisp_clarity"] = "Crisp Clarity",
+        ["horror_atmosphere"] = "Horror Atmosphere",
+        ["pastel_dreams"] = "Pastel Dreams",
+        ["game_stream"] = "Game Stream",
+        ["analog_vhs"] = "Analog VHS",
+        
+        ["color_wheels"] = "Color Balance",
+        ["shadows_color_r"] = "Shadows Red",
+        ["shadows_color_g"] = "Shadows Green",
+        ["shadows_color_b"] = "Shadows Blue",
+        ["midtones_color_r"] = "Midtones Red",
+        ["midtones_color_g"] = "Midtones Green",
+        ["midtones_color_b"] = "Midtones Blue",
+        ["highlights_color_r"] = "Highlights Red",
+        ["highlights_color_g"] = "Highlights Green",
+        ["highlights_color_b"] = "Highlights Blue",
+        
+        -- Split-Toning
+        ["split_toning"] = "Split Toning",
+        ["shadows_red"] = "Shadows Red",
+        ["shadow_red_desc"] = "Red component for shadow toning",
+        ["shadows_green"] = "Shadows Green",
+        ["shadow_green_desc"] = "Green component for shadow toning",
+        ["shadows_blue"] = "Shadows Blue",
+        ["shadow_blue_desc"] = "Blue component for shadow toning",
+        ["shadows_sat"] = "Shadows Saturation",
+        ["shadow_sat_desc"] = "Strength of shadow toning",
+        ["highlights_red"] = "Highlights Red",
+        ["highlight_red_desc"] = "Red component for highlight toning",
+        ["highlights_green"] = "Highlights Green",
+        ["highlight_green_desc"] = "Green component for highlight toning",
+        ["highlights_blue"] = "Highlights Blue",
+        ["highlight_blue_desc"] = "Blue component for highlight toning",
+        ["highlights_sat"] = "Highlights Saturation",
+        ["highlight_sat_desc"] = "Strength of highlight toning",
+        
+        -- Creative Effects
+        ["creative_fx"] = "Creative Effects",
+        ["sharpen"] = "Sharpen",
+        ["sharpen_desc"] = "Local sharpness using unsharp mask",
+        ["bloom"] = "Bloom",
+        ["bloom_desc"] = "Soft glow effect on bright areas",
+        ["halation"] = "Halation",
+        ["halation_desc"] = "Reddish glow on highlights (film look)",
+        
+        -- LUT
+        ["lut"] = "3D LUT",
+        ["lut_file"] = "LUT File",
+        ["lut_file_desc"] = "3D LUT file in CUBE or PNG format (33x33 or 64x64 texture)",
+        ["lut_strength"] = "LUT Strength",
+        ["lut_strength_desc"] = "Strength of the LUT effect",
         ["basic_presets"] = "--- BASIC PRESETS ---",
         ["style_presets"] = "--- STYLE PRESETS ---",
         ["color_mood_presets"] = "--- COLOR MOOD PRESETS ---",
@@ -131,10 +229,6 @@ local translations = {
         ["vignette_amount"] = "Stärke",
         ["vignette_radius"] = "Radius",
         ["vignette_feather"] = "Weichzeichnung",
-        ["film_grain"] = "Filmkorn",
-        ["grain_amount"] = "Stärke",
-        ["grain_size"] = "Körnungsgröße",
-        ["time_seed"] = "Zeit-Seed",
         ["select_preset"] = "Voreinstellung auswählen",
         ["neutral"] = "Neutral",
         ["warm"] = "Warm",
@@ -148,7 +242,7 @@ local translations = {
         ["bw_high_contrast"] = "S/W Hochkontrast",
         ["sepia"] = "Sepia",
         ["filmic"] = "Filmisch",
-        ["cinematic"] = "Kinematisch",
+        ["cinematic"] = "Cinematisch",
         ["dramatic"] = "Dramatisch",
         ["vibrant"] = "Lebendig",
         ["muted"] = "Gedämpft",
@@ -170,96 +264,112 @@ local translations = {
         ["highlights_color_r"] = "Lichter Rot",
         ["highlights_color_g"] = "Lichter Grün",
         ["highlights_color_b"] = "Lichter Blau",
+        
+        -- Split-Toning
+        ["split_toning"] = "Split-Toning",
+        ["shadows_red"] = "Schatten Rot",
+        ["shadow_red_desc"] = "Rot-Anteil für Schatten-Toning",
+        ["shadows_green"] = "Schatten Grün",
+        ["shadow_green_desc"] = "Grün-Anteil für Schatten-Toning",
+        ["shadows_blue"] = "Schatten Blau",
+        ["shadow_blue_desc"] = "Blau-Anteil für Schatten-Toning",
+        ["shadows_sat"] = "Schatten Sättigung",
+        ["shadow_sat_desc"] = "Stärke des Schatten-Tonings",
+        ["highlights_red"] = "Lichter Rot",
+        ["highlight_red_desc"] = "Rot-Anteil für Lichter-Toning",
+        ["highlights_green"] = "Lichter Grün",
+        ["highlight_green_desc"] = "Grün-Anteil für Lichter-Toning",
+        ["highlights_blue"] = "Lichter Blau",
+        ["highlight_blue_desc"] = "Blau-Anteil für Lichter-Toning",
+        ["highlights_sat"] = "Lichter Sättigung",
+        ["highlight_sat_desc"] = "Stärke des Lichter-Tonings",
+        
+        -- Kreative Effekte
+        ["creative_fx"] = "Kreative Effekte",
+        ["sharpen"] = "Schärfen",
+        ["sharpen_desc"] = "Lokale Schärfe durch Unsharp Mask",
+        ["bloom"] = "Bloom",
+        ["bloom_desc"] = "Weicher Glüheffekt auf hellen Bereichen",
+        ["halation"] = "Halation",
+        ["halation_desc"] = "Rötlicher Schimmer auf Highlights (Film-Look)",
+        
+        -- LUT
+        ["lut"] = "3D LUT",
+        ["lut_file"] = "LUT-Datei",
+        ["lut_file_desc"] = "3D LUT-Datei im CUBE oder PNG-Format (33x33 oder 64x64 Textur)",
+        ["lut_strength"] = "LUT-Stärke",
+        ["lut_strength_desc"] = "Stärke des LUT-Effekts",
         ["basic_presets"] = "--- GRUNDLEGENDE VOREINSTELLUNGEN ---",
         ["style_presets"] = "--- STIL-VOREINSTELLUNGEN ---",
         ["color_mood_presets"] = "--- FARBSTIMMUNG-VOREINSTELLUNGEN ---",
-        ["era_presets"] = "--- ÄRA-VOREINSTELLUNGEN ---"
+        ["era_presets"] = "--- ÄRA-VOREINSTELLUNGEN ---",
+        ["creative_presets"] = "--- KREATIVE VOREINSTELLUNGEN ---",
+        ["neo_noir"] = "Neo Noir",
+        ["cyberpunk"] = "Cyberpunk",
+        ["retro_film"] = "Retro Film",
+        ["teal_orange"] = "Teal & Orange",
+        ["dreamy_bloom"] = "Traumhafter Bloom",
+        ["crisp_clarity"] = "Klare Schärfe",
+        ["horror_atmosphere"] = "Horror-Atmosphäre",
+        ["pastel_dreams"] = "Pastell-Träume",
+        ["game_stream"] = "Spiele-Stream",
+        ["analog_vhs"] = "Analog VHS"
     }
 }
 
 -- Schaltet Debug-Logs ein/aus
-local DEBUG = true
-
--- Plattformerkennung
-local function get_platform()
-    local os_name = ffi and ffi.os or "Windows"
-    if os_name == "Windows" then
-        return "windows"
-    elseif os_name == "OSX" or os_name == "Darwin" then
-        return "macos"
-    else
-        return "linux"
-    end
-end
-
--- Verbesserte Debug-Funktion mit Plattforminformationen
-local function log_debug_platform(message)
-    if DEBUG then
-        local platform_info = "[" .. PLATFORM .. "]" 
-        obs.script_log(obs.LOG_DEBUG, platform_info .. " " .. tostring(message))
-    end
-end
-
-local PLATFORM = get_platform()
-local IS_MACOS = PLATFORM == "macos"
-
--- Debug-Ausgabe der erkannten Plattform
-if DEBUG then
-    obs.script_log(obs.LOG_INFO, "[Lumetric Corrector] Erkannte Plattform: " .. PLATFORM)
-end
+local DEBUG = false
 
 -- Kompatible Zeitfunktion (Sekunden als float)
 local function get_time_s()
     if obs.os_gettime_s then
         return obs.os_gettime_s()
     elseif obs.os_gettime_ns then
-        return obs.os_gettime_ns() / 1000000000.0
+        return obs.os_gettime_ns() / 1e9
     else
-        return os.time()
+        return os.clock()
     end
 end
 
--- Shader mit erweiterten Funktionen (Vignette und Film Grain)
--- Wir definieren verschiedene Shader-Versionen für verschiedene Plattformen
-
--- HLSL-Shader für Windows (Standard)
-local hlsl_shader_code = [[
+-- Shader mit erweiterten Funktionen (Vignette)
+local shader_code = [[
 uniform float4x4 ViewProj;
 uniform texture2d image;
+uniform float4 buffer_size;   // x = width, y = height, z = 1/width, w = 1/height
 
-// Plattform-Kompatibilität: fehlende HLSL-Intrinsics für GLSL/macOS bereitstellen
-#ifdef GS_PLATFORM_OPENGL
-#ifndef saturate
-#define saturate(x) clamp(x, 0.0, 1.0)
-#endif
-#ifndef lerp
-#define lerp(a,b,t) mix(a,b,t)
-#endif
-#ifndef frac
-#define frac(x) fract(x)
-#endif
-#endif
+// OBS Studio übernimmt die Konvertierung von HLSL zu GLSL/Metal automatisch
+
+// Constant Buffer mit explizitem Memory-Layout
+// Alle Uniforms in logische Gruppen mit 16-Byte-Alignment
 
 // Grundlegende Korrekturen
 uniform float exposure;
 uniform float contrast;
 uniform float brightness;
+uniform float padding1;  // Padding für 16-Byte-Alignment
+
 uniform float highlights;
 uniform float shadows;
 uniform float whites;
 uniform float blacks;
+
 // Ausbleich-Effekte
 uniform float highlight_fade;
 uniform float shadow_fade;
 uniform float black_lift;
+uniform float padding2;  // Padding für 16-Byte-Alignment
 
 // Weißabgleich
 uniform float temperature;
 uniform float tint;
+uniform float padding3;
+uniform float padding4;  // Padding für 16-Byte-Alignment
 
 // Farbe
 uniform float saturation;
 uniform float vibrance;
+uniform float padding5;
+uniform float padding6;  // Padding für 16-Byte-Alignment
 
 // Vignette-Effekt
 uniform float vignette_amount;
@@ -267,27 +377,40 @@ uniform float vignette_radius;
 uniform float vignette_feather;
 uniform float vignette_shape;  // 0.0 = Kreis, 1.0 = Mehr rechteckig
 
-// Film Grain
-uniform float grain_amount;
-uniform float grain_size;
-uniform float time_seed;
+// Erweiterte Effekte
+uniform float sharpen_amount;      // 0-1  USM-Stärke
+uniform float bloom_intensity;     // 0-1
+uniform float halation;            // 0-1
+uniform float lut_strength;        // 0-1
+uniform float4 split_shadow;       // rgb + sat
+uniform float4 split_highlight;    // rgb + sat
+uniform texture3d lut_tex;         // 3D-LUT (32³, linear)
 
-// Einfache Farbräder (vereinfachte Version als direkter Farbkorrekturansatz)
-uniform float shadows_color_r;
-uniform float shadows_color_g;
-uniform float shadows_color_b;
-uniform float midtones_color_r;
-uniform float midtones_color_g;
-uniform float midtones_color_b;
-uniform float highlights_color_r;
-uniform float highlights_color_g;
-uniform float highlights_color_b;
-
-sampler_state textureSampler {
-    Filter    = Linear;
-    AddressU  = Clamp;
-    AddressV  = Clamp;
+// 3D-Sampler für die LUT-Textur
+sampler_state lut_sampler
+{
+    Filter   = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    AddressW = Clamp;   // 3D braucht alle drei Achsen
 };
+
+// WICHTIG: Farbräder IMMER am Ende des Constant Buffers!
+// Keine weiteren Uniforms nach diesen definieren!
+uniform float4 shadows_color;    // RGB-Komponenten als Vektor (.rgb verwenden, w ignorieren)
+uniform float4 midtones_color;   // RGB-Komponenten als Vektor (.rgb verwenden, w ignorieren)
+uniform float4 highlights_color; // RGB-Komponenten als Vektor (.rgb verwenden, w ignorieren)
+
+// 2D-Sampler für das Eingangstextur-“image”
+sampler_state imageSampler
+{
+    Filter   = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    AddressW = Clamp;   // wird bei 2D ignoriert, schadet aber nicht
+};
+
+// OBS erzeugt automatisch einen Sampler namens 'imageSampler'
 
 struct VertDataIn {
     float4 pos : POSITION;
@@ -312,6 +435,54 @@ float3 apply_contrast(float3 color, float contrast_value) {
     float3 result = color;
     result = (result - 0.5) * (1.0 + contrast_value) + 0.5;
     return result;
+}
+
+// Tone-Mapping-Funktionen
+float3 tone_map_log(float3 c, float offset) {
+    return c * pow(2.0, offset);
+}
+
+// S-Curve für weichen Kontrast
+float3 s_curve(float3 c, float k) {
+    float a = 1.0 + k;
+    return saturate(pow(c, 1.0 / a) * a);
+}
+
+// Selektive Farbton-Rotation
+float3 hue_rotate(float3 c, float3 shift) {
+    // YIQ-Basisrotation pro Kanal
+    const float3x3 R = float3x3(1,0,0, 0,0.707,-0.707, 0,0.707,0.707);
+    const float3x3 G = float3x3(0.707,0,0.707, 0,1,0, -0.707,0,0.707);
+    const float3x3 B = float3x3(0.707,-0.707,0, 0.707,0.707,0, 0,0,1);
+    return mul(R, c) * (1+shift.r) +
+           mul(G, c) * (1+shift.g) +
+           mul(B, c) * (1+shift.b);
+}
+
+// Split-Toning anwenden
+float3 apply_split_tone(float3 c, float luma, float4 sh, float4 hi) {
+    float wS = saturate(1-luma*2);
+    float wH = saturate((luma-0.5)*2);
+    c = lerp(c, saturate(c+sh.rgb), sh.a*wS);
+    c = lerp(c, saturate(c+hi.rgb), hi.a*wH);
+    return c;
+}
+
+// Unsharp Mask für Schärfe
+float3 usm(float2 uv, float3 base, float amt) {
+    float2 px = float2(buffer_size.z, buffer_size.w);   // 1/width, 1/height
+    float3 blur = (image.Sample(imageSampler, uv+px).rgb + image.Sample(imageSampler, uv-px).rgb +
+                   image.Sample(imageSampler, uv+float2(px.x,-px.y)).rgb +
+                   image.Sample(imageSampler, uv+float2(-px.x,px.y)).rgb) * 0.25;
+    return saturate(base + (base-blur)*amt);
+}
+
+// Bloom-Sampling
+float3 bloom_sample(float2 uv) {
+    float2 px = float2(buffer_size.z, buffer_size.w) * 4;   // (1/width, 1/height) * 4
+    return (image.Sample(imageSampler, uv).rgb +
+            image.Sample(imageSampler, uv+px).rgb +
+            image.Sample(imageSampler, uv-px).rgb) / 3;
 }
 
 // Hilfsfunktion für Farbtemperatur
@@ -379,53 +550,54 @@ float3 calculate_weights(float luma) {
 }
 
 // Tonwert-basierte Farbkorrektur anwenden
-float3 apply_color_balance(float3 color, float3 shadows_color, float3 midtones_color, float3 highlights_color) {
+float3 apply_color_balance(float3 color, float4 shadows_color, float4 midtones_color, float4 highlights_color) {
     float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
     float3 weights = calculate_weights(luma);
     
     // Additive Farbmischung mit Gewichtung je nach Tonwertbereich
     float3 result = color;
-    result += shadows_color * weights.x * 0.5;     // 50% Stärke für Schatten
-    result += midtones_color * weights.y * 0.3;    // 30% Stärke für Mitteltöne
-    result += highlights_color * weights.z * 0.5;  // 50% Stärke für Lichter
+    result += shadows_color.rgb * weights.x * 0.5;     // 50% Stärke für Schatten
+    result += midtones_color.rgb * weights.y * 0.3;    // 30% Stärke für Mitteltöne
+    result += highlights_color.rgb * weights.z * 0.5;  // 50% Stärke für Lichter
     
     return saturate(result); // Sicherstellen, dass die Farben im gültigen Bereich bleiben
 }
 
 float4 PSDefault(VertDataOut v_in) : TARGET
 {
-    float4 color = image.Sample(textureSampler, v_in.uv);
+    float4 color = image.Sample(imageSampler, v_in.uv);
     float3 result = color.rgb;
+    float3 orig = result; // Original für Referenz speichern
     
     // Belichtung
     result *= pow(2.0, exposure);
     
     // Lichterwerte und Schatten
     if (highlights != 0.0) {
-        float highlight_mask = smoothstep(0.5, 1.0, result);
+        float3 highlight_mask = smoothstep(0.5, 1.0, result);
         result = lerp(result, result * (1.0 + highlights), highlight_mask);
     }
     
     if (shadows != 0.0) {
-        float shadow_mask = 1.0 - smoothstep(0.0, 0.5, result);
+        float3 shadow_mask = 1.0 - smoothstep(0.0, 0.5, result);
         result = lerp(result, result * (1.0 + shadows), shadow_mask);
     }
     
     // Weißpunkt und Schwarzpunkt
     if (whites != 0.0) {
-        float whites_mask = smoothstep(0.7, 1.0, result);
+        float3 whites_mask = smoothstep(0.7, 1.0, result);
         result = lerp(result, result + whites * 0.5, whites_mask);
     }
     
     if (blacks != 0.0) {
-        float blacks_mask = 1.0 - smoothstep(0.0, 0.3, result);
+        float3 blacks_mask = 1.0 - smoothstep(0.0, 0.3, result);
         result = lerp(result, result + blacks * 0.5, blacks_mask);
     }
     
     // Schwarzwert-Anhebung (Black Lift)
     if (black_lift > 0.0) {
         float lift_amount = black_lift * 0.5; // Maximale Anhebung von 0.5
-        float lift_mask = 1.0 - smoothstep(0.0, 0.4, result);
+        float3 lift_mask = 1.0 - smoothstep(0.0, 0.4, result);
         result = lerp(result, result + lift_amount, lift_mask);
     }
     
@@ -454,23 +626,45 @@ float4 PSDefault(VertDataOut v_in) : TARGET
     }
     
     // Farbräder/Farbbalance anwenden
-    float3 shadows_col = float3(shadows_color_r, shadows_color_g, shadows_color_b);
-    float3 midtones_col = float3(midtones_color_r, midtones_color_g, midtones_color_b);
-    float3 highlights_col = float3(highlights_color_r, highlights_color_g, highlights_color_b);
-    result = apply_color_balance(result, shadows_col, midtones_col, highlights_col);
+    // Die Farbvektoren werden direkt verwendet (keine Konvertierung nötig)
+    result = apply_color_balance(result, shadows_color, midtones_color, highlights_color);
     
-    // Sättigung und Lebendigkeit
+    // 1. Split-Toning (nach Farbrädern)
+    luma = dot(result, float3(0.2126, 0.7152, 0.0722));
+    result = apply_split_tone(result, luma, split_shadow, split_highlight);
+    
+    // 2. Master Sättigung und Lebendigkeit
     result = apply_saturation(result, saturation);
     result = apply_vibrance(result, vibrance);
+    
+    // 3. Bloom-Effekt
+    if (bloom_intensity > 0.001) {
+        float3 bloom = bloom_sample(v_in.uv);
+        result = lerp(result, result + bloom, bloom_intensity);
+    }
+    
+    // 4. Halation (weicher roter Schimmer auf Highlights)
+    if (halation > 0.001) {
+        float redGlow = bloom_sample(v_in.uv).r;
+        result += float3(redGlow*0.1, redGlow*0.04, redGlow*0.02) * halation;
+    }
+    
+    // 5. Lokale Schärfe
+    if (sharpen_amount > 0.001) {
+        result = usm(v_in.uv, result, sharpen_amount);
+    }
+    
+    // 6. 3D LUT anwenden
+    if (lut_strength > 0.001) {
+        float3 lutCol = lut_tex.Sample(lut_sampler, result).rgb;
+        result = lerp(result, lutCol, lut_strength);
+    }
     
     // Vignette anwenden
     if (vignette_amount > 0.0) {
         result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
     }
     
-    // Film Grain wurde entfernt - es verursachte "tickendes" Verhalten
-    
-    // Ergebnis sicherstellen
     return float4(result, color.a);
 }
 
@@ -484,479 +678,227 @@ technique Draw
 }
 ]]
 
--- Wir verwenden keinen Metal-Shader mehr, da er zu Syntaxproblemen führt
+-- Sichere Setter-Funktionen für Shader-Parameter
+local function safe_float(param, val)
+    if param then
+        -- Versuche den Parameter zu setzen, ignoriere Fehler
+        pcall(function() obs.gs_effect_set_float(param, val) end)
+    end
+end
 
--- Verbesserter GLSL-Shader für macOS mit erweiterten Kompatibilitätsdefinitionen
-local glsl_shader_code = [[
-uniform mat4 ViewProj;
-uniform sampler2D image; // Korrigiert: sampler2D statt sampler2d
-
-// Erweiterte Kompatibilitätsdefinitionen für macOS GLSL
-#ifdef GS_PLATFORM_OPENGL
-#ifndef saturate
-#define saturate(x) clamp(x, 0.0, 1.0)
-#endif
-#ifndef lerp
-#define lerp(a,b,t) mix(a,b,t)
-#endif
-#ifndef frac
-#define frac(x) fract(x)
-#endif
-#ifndef float2
-#define float2 vec2
-#endif
-#ifndef float3
-#define float3 vec3
-#endif
-#ifndef float4
-#define float4 vec4
-#endif
-#ifndef float4x4
-#define float4x4 mat4
-#endif
-#ifndef TARGET
-#define TARGET
-#endif
-#endif
-
-// Uniforms für Farbkorrektur
-uniform float exposure;
-uniform float contrast;
-uniform float brightness;
-uniform float highlights;
-uniform float shadows;
-uniform float whites;
-uniform float blacks;
-uniform float highlight_fade;
-uniform float shadow_fade;
-uniform float black_lift;
-uniform float temperature;
-uniform float tint;
-uniform float saturation;
-uniform float vibrance;
-uniform float vignette_amount;
-uniform float vignette_radius;
-uniform float vignette_feather;
-uniform float vignette_shape;
-uniform float grain_amount;
-uniform float grain_size;
-uniform float time_seed;
-
-// Farbrad-Parameter
-uniform float shadows_color_r;
-uniform float shadows_color_g;
-uniform float shadows_color_b;
-uniform float midtones_color_r;
-uniform float midtones_color_g;
-uniform float midtones_color_b;
-uniform float highlights_color_r;
-uniform float highlights_color_g;
-uniform float highlights_color_b;
-
-struct VertDataIn {
-    float4 pos : POSITION;
-    float2 uv  : TEXCOORD0;
-};
-
-struct VertDataOut {
-    float4 pos : POSITION;
-    float2 uv  : TEXCOORD0;
-};
-
-VertDataOut VSDefault(VertDataIn v_in)
-{
-    VertDataOut vert_out;
-    vert_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
-    vert_out.uv  = v_in.uv;
-    return vert_out;
-}
-
-// Hilfsfunktionen
-float3 rgb_to_hsv(float3 rgb)
-{
-    float4 K = float4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
-    float4 p = mix(float4(rgb.bg, K.wz), float4(rgb.gb, K.xy), step(rgb.b, rgb.g));
-    float4 q = mix(float4(p.xyw, rgb.r), float4(rgb.r, p.yzx), step(p.x, rgb.r));
+-- Korrekte set_vec3 Funktion - verwendet ein OBS-Vektor-Objekt
+local function set_vec3(param, x, y, z)
+    if not param then return end
     
-    float d = q.x - min(q.w, q.y);
-    float e = 1.0e-10;
-    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
-}
+    -- OBS-Container anlegen
+    local v = obs.vec4()
+    v.x = x
+    v.y = y
+    v.z = z
+    v.w = 0.0  -- Padding / wird vom Shader ignoriert
+    
+    -- Vektor-Objekt übergeben
+    pcall(function()
+        obs.gs_effect_set_vec4(param, v)
+    end)
+end
 
-float3 hsv_to_rgb(float3 hsv)
-{
-    float4 K = float4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
-    float3 p = abs(frac(hsv.xxx + K.xyz) * 6.0 - K.www);
-    return hsv.z * mix(K.xxx, saturate(p - K.xxx), hsv.y);
-}
+-- Funktion für Split-Toning-Parameter (float4 mit RGB + Saturation)
+local function set_split(param, r, g, b, sat)
+    if not param then return end
+    
+    -- OBS-Container anlegen
+    local v = obs.vec4()
+    v.x = r or 0.0
+    v.y = g or 0.0
+    v.z = b or 0.0
+    v.w = sat or 0.0  -- Saturation in w-Komponente
+    
+    -- Vektor-Objekt übergeben
+    pcall(function()
+        obs.gs_effect_set_vec4(param, v)
+    end)
+end
 
-float3 apply_contrast(float3 color, float contrast_value)
-{
-    float midpoint = 0.5;
-    return saturate((color - midpoint) * (1.0 + contrast_value) + midpoint);
-}
-
-float3 apply_temperature(float3 color, float temp, float tint_value)
-{
-    // Temperatur-Anpassung
-    float3 warm = float3(0.95, 0.92, 0.88);
-    float3 cool = float3(0.88, 0.92, 0.95);
-    float3 target = (temp > 0.0) ? warm : cool;
-    float temp_abs = abs(temp);
-    color = lerp(color, color * target, temp_abs * 0.1);
+-- Funktion für buffer_size (float4 mit width, height, 1/width, 1/height)
+local function set_buffer_size(param, width, height)
+    if not param then return end
     
-    // Tint-Anpassung (Grün-Magenta)
-    float3 tint_target = (tint_value > 0.0) ? float3(0.96, 1.0, 0.96) : float3(1.0, 0.96, 1.0);
-    float tint_abs = abs(tint_value);
-    color = lerp(color, color * tint_target, tint_abs * 0.1);
+    -- OBS-Container anlegen
+    local v = obs.vec4()
+    v.x = width or 1.0            -- width
+    v.y = height or 1.0           -- height
+    v.z = 1.0 / (width or 1.0)    -- 1/width
+    v.w = 1.0 / (height or 1.0)   -- 1/height
     
-    return color;
-}
-
-float3 apply_saturation(float3 color, float sat)
-{
-    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
-    return lerp(float3(luma, luma, luma), color, 1.0 + sat);
-}
-
-float3 apply_vibrance(float3 color, float vib)
-{
-    float max_color = max(color.r, max(color.g, color.b));
-    float min_color = min(color.r, min(color.g, color.b));
-    float sat = (max_color - min_color) / max(max_color, 0.001);
-    float vibrance_amount = 1.0 + (vib * (1.0 - sat));
-    return lerp(float3(dot(color, float3(0.299, 0.587, 0.114))), color, vibrance_amount);
-}
-
-float3 apply_vignette(float3 color, float2 uv, float amount, float radius, float feather, float shape)
-{
-    float2 center = float2(0.5, 0.5);
-    float2 coord = uv - center;
-    
-    // Elliptische Form basierend auf shape-Parameter
-    float aspect = 16.0 / 9.0; // Standard-Seitenverhältnis
-    coord.x *= lerp(1.0, aspect, shape);
-    
-    float dist = length(coord);
-    float vignette_mask = smoothstep(radius, radius - feather, dist);
-    vignette_mask = pow(vignette_mask, 2.0); // Für weichere Kanten
-    
-    return color * (1.0 - amount + vignette_mask * amount);
-}
-
-// Farbbalance basierend auf Luminanz
-float3 apply_color_balance(float3 color, float3 shadows_col, float3 midtones_col, float3 highlights_col)
-{
-    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
-    
-    // Gewichtung für Schatten, Mitteltöne und Lichter
-    float shadows_weight = 1.0 - smoothstep(0.0, 0.5, luma);
-    float highlights_weight = smoothstep(0.5, 1.0, luma);
-    float midtones_weight = 1.0 - shadows_weight - highlights_weight;
-    
-    // Farbbalance anwenden
-    float3 shadows_adj = lerp(float3(1.0, 1.0, 1.0), shadows_col, shadows_weight * 0.2);
-    float3 midtones_adj = lerp(float3(1.0, 1.0, 1.0), midtones_col, midtones_weight * 0.2);
-    float3 highlights_adj = lerp(float3(1.0, 1.0, 1.0), highlights_col, highlights_weight * 0.2);
-    
-    return color * shadows_adj * midtones_adj * highlights_adj;
-}
-
-float4 PSDefault(VertDataOut v_in) : TARGET
-{
-    // Korrigiert: texture2D für macOS Kompatibilität
-    #ifdef GS_PLATFORM_OPENGL
-    float4 color = texture2D(image, v_in.uv);
-    #else
-    float4 color = texture(image, v_in.uv);
-    #endif
-    float3 result = color.rgb;
-
-    // Belichtung
-    result *= pow(2.0, exposure);
-
-    // Lichterwerte und Schatten
-    if (highlights != 0.0) {
-        float highlight_mask = smoothstep(0.5, 1.0, result);
-        result = lerp(result, result * (1.0 + highlights), highlight_mask);
-    }
-    if (shadows != 0.0) {
-        float shadow_mask = 1.0 - smoothstep(0.0, 0.5, result);
-        result = lerp(result, result * (1.0 + shadows), shadow_mask);
-    }
-
-    // Weißpunkt und Schwarzpunkt
-    if (whites != 0.0) {
-        float whites_amount = whites * 0.05;
-        float whites_mask = smoothstep(0.7, 1.0, result);
-        result = lerp(result, saturate(result + whites_amount), whites_mask);
-    }
-    if (blacks != 0.0) {
-        float blacks_amount = blacks * 0.05;
-        float blacks_mask = 1.0 - smoothstep(0.0, 0.3, result);
-        result = lerp(result, saturate(result - blacks_amount), blacks_mask);
-    }
-
-    // Schwarzanhebung
-    if (black_lift > 0.0) {
-        float lift_amount = black_lift * 0.5; // Maximale Anhebung von 0.5
-        float lift_mask = 1.0 - smoothstep(0.0, 0.4, result);
-        result = lerp(result, result + lift_amount, lift_mask);
-    }
-    
-    // Helligkeit
-    result = saturate(result + brightness);
-    
-    // Kontrast
-    result = apply_contrast(result, contrast);
-    
-    // Farbtemperatur und Tint
-    result = apply_temperature(result, temperature, tint);
-    
-    // Highlight/Shadow Ausbleichen
-    float luma = dot(result, float3(0.2126, 0.7152, 0.0722));
-    
-    // Lichter ausbleichen
-    if (highlight_fade > 0.0) {
-        float highlight_mask = smoothstep(0.7, 1.0, luma);
-        result = lerp(result, float3(1.0, 1.0, 1.0), highlight_mask * highlight_fade);
-    }
-    
-    // Schatten ausbleichen (aufhellen)
-    if (shadow_fade > 0.0) {
-        float shadow_mask = 1.0 - smoothstep(0.0, 0.3, luma);
-        result = lerp(result, float3(1.0, 1.0, 1.0), shadow_mask * shadow_fade);
-    }
-    
-    // Farbräder/Farbbalance anwenden
-    float3 shadows_col = float3(shadows_color_r, shadows_color_g, shadows_color_b);
-    float3 midtones_col = float3(midtones_color_r, midtones_color_g, midtones_color_b);
-    float3 highlights_col = float3(highlights_color_r, highlights_color_g, highlights_color_b);
-    result = apply_color_balance(result, shadows_col, midtones_col, highlights_col);
-    
-    // Sättigung und Lebendigkeit
-    result = apply_saturation(result, saturation);
-    result = apply_vibrance(result, vibrance);
-    
-    // Vignette anwenden
-    if (vignette_amount > 0.0) {
-        result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
-    }
-    
-    // Film Grain wurde entfernt - es verursachte "tickendes" Verhalten
-    
-    // Ergebnis sicherstellen
-    return float4(result, color.a);
-}
-
-technique Draw
-{
-    pass
-    {
-        vertex_shader = VSDefault(v_in);
-        pixel_shader  = PSDefault(v_in);
-    }
-}
-]]
+    -- Vektor-Objekt übergeben
+    pcall(function()
+        obs.gs_effect_set_vec4(param, v)
+    end)
+end
 
 -- Parameter an den Shader übergeben
 function set_shader_params(data)
-    if not data or not data.params then 
-        log_debug_platform("Keine Daten oder Parameter verfügbar")
-        return 
-    end
+    if not data or not data.params or not data.effect then return end
     
-    -- Überprüfe Shader-Parameter
-    if not check_shader_params(data) then
-        log_debug_platform("Shader-Parameter-Validierung fehlgeschlagen")
-        return
-    end
-    
-    -- Alle Parameter setzen
+    -- Basis-Parameter setzen
     if data.params.exposure then 
         if data.last_exposure ~= data.exposure then
-            obs.gs_effect_set_float(data.params.exposure, data.exposure)
+            safe_float(data.params.exposure, data.exposure)
             data.last_exposure = data.exposure
         end
     end
     if data.params.contrast then 
         if data.last_contrast ~= data.contrast then
-            obs.gs_effect_set_float(data.params.contrast, data.contrast)
+            safe_float(data.params.contrast, data.contrast)
             data.last_contrast = data.contrast
         end
     end
     if data.params.brightness then 
         if data.last_brightness ~= data.brightness then
-            obs.gs_effect_set_float(data.params.brightness, data.brightness)
+            safe_float(data.params.brightness, data.brightness)
             data.last_brightness = data.brightness
         end
     end
     if data.params.highlights then 
         if data.last_highlights ~= data.highlights then
-            obs.gs_effect_set_float(data.params.highlights, data.highlights)
+            safe_float(data.params.highlights, data.highlights)
             data.last_highlights = data.highlights
         end
     end
     if data.params.shadows then 
         if data.last_shadows ~= data.shadows then
-            obs.gs_effect_set_float(data.params.shadows, data.shadows)
+            safe_float(data.params.shadows, data.shadows)
             data.last_shadows = data.shadows
         end
     end
     if data.params.whites then 
         if data.last_whites ~= data.whites then
-            obs.gs_effect_set_float(data.params.whites, data.whites)
+            safe_float(data.params.whites, data.whites)
             data.last_whites = data.whites
         end
     end
     if data.params.blacks then 
         if data.last_blacks ~= data.blacks then
-            obs.gs_effect_set_float(data.params.blacks, data.blacks)
+            safe_float(data.params.blacks, data.blacks)
             data.last_blacks = data.blacks
         end
     end
     if data.params.temperature then 
         if data.last_temperature ~= data.temperature then
-            obs.gs_effect_set_float(data.params.temperature, data.temperature)
+            safe_float(data.params.temperature, data.temperature)
             data.last_temperature = data.temperature
         end
     end
     if data.params.tint then 
         if data.last_tint ~= data.tint then
-            obs.gs_effect_set_float(data.params.tint, data.tint)
+            safe_float(data.params.tint, data.tint)
             data.last_tint = data.tint
         end
     end
     if data.params.saturation then 
         if data.last_saturation ~= data.saturation then
-            obs.gs_effect_set_float(data.params.saturation, data.saturation)
+            safe_float(data.params.saturation, data.saturation)
             data.last_saturation = data.saturation
         end
     end
     if data.params.vibrance then 
         if data.last_vibrance ~= data.vibrance then
-            obs.gs_effect_set_float(data.params.vibrance, data.vibrance)
+            safe_float(data.params.vibrance, data.vibrance)
             data.last_vibrance = data.vibrance
         end
     end
     if data.params.vignette_amount then 
         if data.last_vignette_amount ~= data.vignette_amount then
-            obs.gs_effect_set_float(data.params.vignette_amount, data.vignette_amount)
+            safe_float(data.params.vignette_amount, data.vignette_amount)
             data.last_vignette_amount = data.vignette_amount
         end
     end
     if data.params.vignette_radius then 
         if data.last_vignette_radius ~= data.vignette_radius then
-            obs.gs_effect_set_float(data.params.vignette_radius, data.vignette_radius)
+            safe_float(data.params.vignette_radius, data.vignette_radius)
             data.last_vignette_radius = data.vignette_radius
         end
     end
     if data.params.vignette_feather then 
         if data.last_vignette_feather ~= data.vignette_feather then
-            obs.gs_effect_set_float(data.params.vignette_feather, data.vignette_feather)
+            safe_float(data.params.vignette_feather, data.vignette_feather)
             data.last_vignette_feather = data.vignette_feather
         end
     end
     if data.params.vignette_shape then 
         if data.last_vignette_shape ~= data.vignette_shape then
-            obs.gs_effect_set_float(data.params.vignette_shape, data.vignette_shape)
+            safe_float(data.params.vignette_shape, data.vignette_shape)
             data.last_vignette_shape = data.vignette_shape
-        end
-    end
-    if data.params.grain_amount then 
-        if data.last_grain_amount ~= data.grain_amount then
-            obs.gs_effect_set_float(data.params.grain_amount, data.grain_amount)
-            data.last_grain_amount = data.grain_amount
-        end
-    end
-    if data.params.grain_size then 
-        if data.last_grain_size ~= data.grain_size then
-            obs.gs_effect_set_float(data.params.grain_size, data.grain_size)
-            data.last_grain_size = data.grain_size
         end
     end
     if data.params.highlight_fade then 
         if data.last_highlight_fade ~= data.highlight_fade then
-            obs.gs_effect_set_float(data.params.highlight_fade, data.highlight_fade)
+            safe_float(data.params.highlight_fade, data.highlight_fade)
             data.last_highlight_fade = data.highlight_fade
         end
     end
     if data.params.shadow_fade then 
         if data.last_shadow_fade ~= data.shadow_fade then
-            obs.gs_effect_set_float(data.params.shadow_fade, data.shadow_fade)
+            safe_float(data.params.shadow_fade, data.shadow_fade)
             data.last_shadow_fade = data.shadow_fade
         end
-    end
-    if data.params.time_seed then 
-        if data.last_time_seed ~= data.time_seed then
-            obs.gs_effect_set_float(data.params.time_seed, data.time_seed)
-            data.last_time_seed = data.time_seed
-        end
-    end
-    
+    end   
     if data.params.black_lift then 
         if data.last_black_lift ~= data.black_lift then
-            obs.gs_effect_set_float(data.params.black_lift, data.black_lift)
+            safe_float(data.params.black_lift, data.black_lift)
             data.last_black_lift = data.black_lift
         end
     end
     
-    -- Farbrad-Parameter setzen (nur wenn sie existieren)
-    if data.params.shadows_color_r and data.shadows_color_r ~= nil then 
-        if data.last_shadows_color_r ~= data.shadows_color_r then
-            obs.gs_effect_set_float(data.params.shadows_color_r, data.shadows_color_r)
-            data.last_shadows_color_r = data.shadows_color_r
-        end
-    end
-    if data.params.shadows_color_g and data.shadows_color_g ~= nil then 
-        if data.last_shadows_color_g ~= data.shadows_color_g then
-            obs.gs_effect_set_float(data.params.shadows_color_g, data.shadows_color_g)
-            data.last_shadows_color_g = data.shadows_color_g
-        end
-    end
-    if data.params.shadows_color_b and data.shadows_color_b ~= nil then 
-        if data.last_shadows_color_b ~= data.shadows_color_b then
-            obs.gs_effect_set_float(data.params.shadows_color_b, data.shadows_color_b)
-            data.last_shadows_color_b = data.shadows_color_b
-        end
+    -- Farbrad-Parameter als float3-Vektoren setzen
+    if data.params.shadows_color then
+        set_vec3(data.params.shadows_color, data.shadows_color_r or 0, data.shadows_color_g or 0, data.shadows_color_b or 0)
     end
     
-    if data.params.midtones_color_r and data.midtones_color_r ~= nil then 
-        if data.last_midtones_color_r ~= data.midtones_color_r then
-            obs.gs_effect_set_float(data.params.midtones_color_r, data.midtones_color_r)
-            data.last_midtones_color_r = data.midtones_color_r
-        end
-    end
-    if data.params.midtones_color_g and data.midtones_color_g ~= nil then 
-        if data.last_midtones_color_g ~= data.midtones_color_g then
-            obs.gs_effect_set_float(data.params.midtones_color_g, data.midtones_color_g)
-            data.last_midtones_color_g = data.midtones_color_g
-        end
-    end
-    if data.params.midtones_color_b and data.midtones_color_b ~= nil then 
-        if data.last_midtones_color_b ~= data.midtones_color_b then
-            obs.gs_effect_set_float(data.params.midtones_color_b, data.midtones_color_b)
-            data.last_midtones_color_b = data.midtones_color_b
-        end
+    if data.params.midtones_color then
+        set_vec3(data.params.midtones_color, data.midtones_color_r or 0, data.midtones_color_g or 0, data.midtones_color_b or 0)
     end
     
-    if data.params.highlights_color_r and data.highlights_color_r ~= nil then 
-        if data.last_highlights_color_r ~= data.highlights_color_r then
-            obs.gs_effect_set_float(data.params.highlights_color_r, data.highlights_color_r)
-            data.last_highlights_color_r = data.highlights_color_r
-        end
+    if data.params.highlights_color then
+        set_vec3(data.params.highlights_color, data.highlights_color_r or 0, data.highlights_color_g or 0, data.highlights_color_b or 0)
     end
-    if data.params.highlights_color_g and data.highlights_color_g ~= nil then 
-        if data.last_highlights_color_g ~= data.highlights_color_g then
-            obs.gs_effect_set_float(data.params.highlights_color_g, data.highlights_color_g)
-            data.last_highlights_color_g = data.highlights_color_g
-        end
+    
+    -- Erweiterte Effekte
+    if data.params.sharpen_amount then
+        safe_float(data.params.sharpen_amount, data.sharpen or 0)
     end
-    if data.params.highlights_color_b and data.highlights_color_b ~= nil then 
-        if data.last_highlights_color_b ~= data.highlights_color_b then
-            obs.gs_effect_set_float(data.params.highlights_color_b, data.highlights_color_b)
-            data.last_highlights_color_b = data.highlights_color_b
-        end
+    
+    if data.params.bloom_intensity then
+        safe_float(data.params.bloom_intensity, data.bloom or 0)
+    end
+    
+    if data.params.halation then
+        safe_float(data.params.halation, data.halation or 0)
+    end
+    
+    if data.params.lut_strength then
+        safe_float(data.params.lut_strength, data.lut_strength or 0)
+    end
+    
+    -- Split-Toning (als vec4 mit RGB + Saturation)
+    if data.params.split_shadow then
+        set_split(data.params.split_shadow, data.ss_r or 0, data.ss_g or 0, data.ss_b or 0, data.ss_sat or 0)
+    end
+    
+    if data.params.split_highlight then
+        set_split(data.params.split_highlight, data.sh_r or 0, data.sh_g or 0, data.sh_b or 0, data.sh_sat or 0)
+    end
+    
+    -- 3D-LUT Textur (einmal nach Load)
+    if data.params.lut_tex and data.lut_tex and not data.lut_bound then
+        pcall(function() obs.gs_effect_set_texture(data.params.lut_tex, data.lut_tex) end)
+        data.lut_bound = true
+    end
+    
+    -- Buffer-Size als vec4 setzen (width, height, 1/width, 1/height)
+    if data.params.buffer_size and data.width and data.height then
+        set_buffer_size(data.params.buffer_size, data.width, data.height)
     end
     
     -- Nur für die Preview-Textur explizit setzen
@@ -965,11 +907,10 @@ function set_shader_params(data)
     end
 end
 
--- Hilfsfunktion für Debug-Log-Funktion mit erweiterten Informationen
+-- Hilfsfunktion für Debug-Logging
 local function log_debug(message)
     if DEBUG then
-        local platform_info = IS_MACOS and "[macOS]" or "[Windows]"
-        print("[Lumetric Corrector] " .. platform_info .. " " .. message)
+        obs.blog(obs.LOG_INFO, "[Lumetric] " .. message)
     end
 end
 
@@ -987,7 +928,13 @@ end
 
 -- Skriptbeschreibung
 function script_description()
-    return _("lumetric_corrector") .. " - " .. "v1.0.0"
+    return _("lumetric_corrector") .. " - " .. "v2.0.0" .. "\n\n" ..
+    "Professional color grading filter for OBS Studio. Usage:\n" ..
+    "1. Add as a filter to any source: Right-click source > Filters > + > Lumetric Corrector\n" ..
+    "2. Adjust parameters or select one of 35+ presets\n" ..
+    "3. Use basic corrections, color wheels, split-toning, and creative effects\n" ..
+    "4. Optional: Load a 3D LUT file for advanced color grading\n\n" ..
+    "New in v2.0: Enhanced shader compatibility, split-toning, bloom, halation, and 10 new creative presets."
 end
 
 -- Filtername für OBS
@@ -1018,6 +965,16 @@ local function set_render_size(data)
     end
 end
 
+-- LUT-Textur laden
+local function load_lut(path)
+    if not path or path == "" then return nil end
+    local tex = obs.gs_texture_create_from_file(path)
+    if not tex then
+        obs.blog(obs.LOG_ERROR, "[Lumetric] LUT-Load failed: "..path)
+    end
+    return tex
+end
+
 -- Funktionen für Vorschaugröße
 source_info.get_width = function(data)
     return data.width or 0
@@ -1030,15 +987,6 @@ end
 -- Aktualisierung vor dem Rendern
 source_info.video_tick = function(data, seconds)
     if not data then return end
-    
-    -- Instanzspezifischen Zeitsamen aktualisieren
-    -- time_seed nur 1× pro Sekunde aktualisieren
-    local now = get_time_s()
-    if (not data.last_seed_ts) or ((now - data.last_seed_ts) >= 1) then
-        data.time_seed    = now
-        data.last_seed_ts = now
-        data.dirty        = true
-    end
     
     -- Aktualisiere die Größe
     set_render_size(data)
@@ -1085,7 +1033,6 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "saturation", 0.0)
         obs.obs_data_set_double(settings, "vibrance", 0.0)
         obs.obs_data_set_double(settings, "vignette_amount", 0.0)
-        obs.obs_data_set_double(settings, "grain_amount", 0.0)
         obs.obs_data_set_double(settings, "shadows_color_r", 0.0)
         obs.obs_data_set_double(settings, "shadows_color_g", 0.0)
         obs.obs_data_set_double(settings, "shadows_color_b", 0.0)
@@ -1127,7 +1074,6 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "highlights_color_r", 0.1)
         obs.obs_data_set_double(settings, "highlights_color_b", -0.05)
         obs.obs_data_set_double(settings, "vignette_amount", 0.2)
-        obs.obs_data_set_double(settings, "grain_amount", 0.2)
     elseif preset_type == "bw" then
         obs.obs_data_set_double(settings, "saturation", -1.0)
         obs.obs_data_set_double(settings, "contrast", 0.1)
@@ -1215,6 +1161,117 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "saturation", 0.15)
         obs.obs_data_set_double(settings, "vibrance", 0.1)
         obs.obs_data_set_double(settings, "contrast", 0.1)
+    -- Neue kreative Presets mit erweiterten Funktionen
+    elseif preset_type == "neo_noir" then
+        -- Dramatisches Schwarz-Weiß mit blauem Split-Toning und Vignette
+        obs.obs_data_set_double(settings, "saturation", -0.9)
+        obs.obs_data_set_double(settings, "contrast", 0.25)
+        obs.obs_data_set_double(settings, "blacks", -0.15)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.4)
+        obs.obs_data_set_double(settings, "vignette_feather", 0.6)
+        obs.obs_data_set_double(settings, "ss_b", 0.2)  -- Blaue Schatten
+        obs.obs_data_set_double(settings, "ss_sat", 0.3) -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "sharpen", 0.2) -- Leichte Schärfe
+    elseif preset_type == "cyberpunk" then
+        -- Futuristischer Look mit Neonfarben und Bloom
+        obs.obs_data_set_double(settings, "contrast", 0.2)
+        obs.obs_data_set_double(settings, "blacks", -0.1)
+        obs.obs_data_set_double(settings, "vibrance", 0.3)
+        obs.obs_data_set_double(settings, "sh_b", 0.3)  -- Blaue Lichter
+        obs.obs_data_set_double(settings, "sh_sat", 0.5) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "ss_r", 0.2)  -- Rote Schatten
+        obs.obs_data_set_double(settings, "ss_sat", 0.4) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "bloom", 0.4)  -- Starker Bloom
+        obs.obs_data_set_double(settings, "halation", 0.2) -- Mittlere Halation
+    elseif preset_type == "retro_film" then
+        -- Vintage-Filmemulation mit Halation und Körnigkeit
+        obs.obs_data_set_double(settings, "temperature", 0.1)
+        obs.obs_data_set_double(settings, "saturation", -0.2)
+        obs.obs_data_set_double(settings, "contrast", 0.15)
+        obs.obs_data_set_double(settings, "highlights", -0.1)
+        obs.obs_data_set_double(settings, "shadows", 0.05)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.25)
+        obs.obs_data_set_double(settings, "halation", 0.4)  -- Starke Halation für Filmglühen
+        obs.obs_data_set_double(settings, "sh_r", 0.15)  -- Rötliche Lichter
+        obs.obs_data_set_double(settings, "sh_sat", 0.3)  -- Mittlere Sättigung
+    elseif preset_type == "teal_orange" then
+        -- Beliebter Filmkontrast mit Split-Toning
+        obs.obs_data_set_double(settings, "contrast", 0.2)
+        obs.obs_data_set_double(settings, "vibrance", 0.1)
+        obs.obs_data_set_double(settings, "sh_r", 0.25)  -- Orange Lichter
+        obs.obs_data_set_double(settings, "sh_g", 0.1)   
+        obs.obs_data_set_double(settings, "sh_sat", 0.4) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "ss_b", 0.25)  -- Türkise Schatten
+        obs.obs_data_set_double(settings, "ss_g", 0.1)   
+        obs.obs_data_set_double(settings, "ss_sat", 0.4) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "sharpen", 0.15) -- Leichte Schärfe
+    elseif preset_type == "dreamy_bloom" then
+        -- Weicher, träumerischer Look mit Bloom und Halation
+        obs.obs_data_set_double(settings, "contrast", -0.05)
+        obs.obs_data_set_double(settings, "highlights", 0.1)
+        obs.obs_data_set_double(settings, "shadows", 0.1)
+        obs.obs_data_set_double(settings, "saturation", 0.05)
+        obs.obs_data_set_double(settings, "bloom", 0.5)  -- Starker Bloom
+        obs.obs_data_set_double(settings, "halation", 0.3) -- Mittlere Halation
+        obs.obs_data_set_double(settings, "sh_r", 0.1)  -- Leicht warme Lichter
+        obs.obs_data_set_double(settings, "sh_g", 0.05) 
+        obs.obs_data_set_double(settings, "sh_sat", 0.2) -- Leichte Sättigung
+    elseif preset_type == "crisp_clarity" then
+        -- Scharfer, klarer Look mit Kontrast und Schärfe
+        obs.obs_data_set_double(settings, "contrast", 0.2)
+        obs.obs_data_set_double(settings, "highlights", -0.05)
+        obs.obs_data_set_double(settings, "shadows", -0.05)
+        obs.obs_data_set_double(settings, "blacks", -0.05)
+        obs.obs_data_set_double(settings, "vibrance", 0.1)
+        obs.obs_data_set_double(settings, "sharpen", 0.4) -- Starke Schärfe
+        obs.obs_data_set_double(settings, "vignette_amount", 0.1)
+    elseif preset_type == "horror_atmosphere" then
+        -- Düsterer, bedrohlicher Look für Horror-Content
+        obs.obs_data_set_double(settings, "temperature", -0.2)
+        obs.obs_data_set_double(settings, "saturation", -0.3)
+        obs.obs_data_set_double(settings, "contrast", 0.2)
+        obs.obs_data_set_double(settings, "highlights", -0.1)
+        obs.obs_data_set_double(settings, "shadows", -0.2)
+        obs.obs_data_set_double(settings, "blacks", -0.15)
+        obs.obs_data_set_double(settings, "vignette_amount", 0.4)
+        obs.obs_data_set_double(settings, "vignette_feather", 0.5)
+        obs.obs_data_set_double(settings, "ss_b", 0.15)  -- Bläuliche Schatten
+        obs.obs_data_set_double(settings, "ss_sat", 0.2)  -- Leichte Sättigung
+        obs.obs_data_set_double(settings, "sharpen", 0.15) -- Leichte Schärfe
+    elseif preset_type == "pastel_dreams" then
+        -- Weicher, pastellfarbener Look mit Split-Toning
+        obs.obs_data_set_double(settings, "contrast", -0.1)
+        obs.obs_data_set_double(settings, "highlights", 0.1)
+        obs.obs_data_set_double(settings, "shadows", 0.1)
+        obs.obs_data_set_double(settings, "saturation", -0.1)
+        obs.obs_data_set_double(settings, "vibrance", 0.1)
+        obs.obs_data_set_double(settings, "sh_r", 0.1)  -- Rosa Lichter
+        obs.obs_data_set_double(settings, "sh_b", 0.1)  
+        obs.obs_data_set_double(settings, "sh_sat", 0.3) -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "ss_b", 0.15)  -- Bläuliche Schatten
+        obs.obs_data_set_double(settings, "ss_sat", 0.3)  -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "bloom", 0.2)  -- Leichter Bloom
+    elseif preset_type == "game_stream" then
+        -- Optimierter Look für Gaming-Streams mit Schärfe und Lebendigkeit
+        obs.obs_data_set_double(settings, "contrast", 0.15)
+        obs.obs_data_set_double(settings, "highlights", -0.05)
+        obs.obs_data_set_double(settings, "shadows", 0.05)
+        obs.obs_data_set_double(settings, "vibrance", 0.2)
+        obs.obs_data_set_double(settings, "saturation", 0.1)
+        obs.obs_data_set_double(settings, "sharpen", 0.3) -- Starke Schärfe für Details
+        obs.obs_data_set_double(settings, "vignette_amount", 0.15)
+        obs.obs_data_set_double(settings, "vignette_feather", 0.7)
+    elseif preset_type == "analog_vhs" then
+        -- Retro-VHS-Look mit Halation und Farbverschiebung
+        obs.obs_data_set_double(settings, "saturation", 0.1)
+        obs.obs_data_set_double(settings, "contrast", 0.1)
+        obs.obs_data_set_double(settings, "highlights", -0.1)
+        obs.obs_data_set_double(settings, "shadows", -0.05)
+        obs.obs_data_set_double(settings, "halation", 0.5) -- Maximale Halation für VHS-Glühen
+        obs.obs_data_set_double(settings, "sh_r", 0.1)  -- Rötliche Lichter
+        obs.obs_data_set_double(settings, "sh_sat", 0.2) -- Leichte Sättigung
+        obs.obs_data_set_double(settings, "ss_b", 0.1)  -- Bläuliche Schatten
+        obs.obs_data_set_double(settings, "ss_sat", 0.2) -- Leichte Sättigung
     end
     
     -- Aktualisiere den Filter mit den neuen Einstellungen
@@ -1284,6 +1341,19 @@ source_info.get_properties = function(data)
     -- Ära-Presets
     obs.obs_property_list_add_string(preset_list, _("era_presets"), "separator_era")
     obs.obs_property_list_add_string(preset_list, _("vintage"), "vintage")
+    
+    -- Kreative Presets mit erweiterten Funktionen (v2.0)
+    obs.obs_property_list_add_string(preset_list, _("creative_presets"), "separator_creative")
+    obs.obs_property_list_add_string(preset_list, _("neo_noir"), "neo_noir")
+    obs.obs_property_list_add_string(preset_list, _("cyberpunk"), "cyberpunk")
+    obs.obs_property_list_add_string(preset_list, _("retro_film"), "retro_film")
+    obs.obs_property_list_add_string(preset_list, _("teal_orange"), "teal_orange")
+    obs.obs_property_list_add_string(preset_list, _("dreamy_bloom"), "dreamy_bloom")
+    obs.obs_property_list_add_string(preset_list, _("crisp_clarity"), "crisp_clarity")
+    obs.obs_property_list_add_string(preset_list, _("horror_atmosphere"), "horror_atmosphere")
+    obs.obs_property_list_add_string(preset_list, _("pastel_dreams"), "pastel_dreams")
+    obs.obs_property_list_add_string(preset_list, _("game_stream"), "game_stream")
+    obs.obs_property_list_add_string(preset_list, _("analog_vhs"), "analog_vhs")
     obs.obs_property_list_add_string(preset_list, _("bw"), "bw")
     obs.obs_property_list_add_string(preset_list, _("bw_high_contrast"), "bw_high_contrast")
     obs.obs_property_list_add_string(preset_list, _("sepia"), "sepia")
@@ -1354,8 +1424,6 @@ source_info.get_properties = function(data)
     local prop_vibrance = obs.obs_properties_add_float_slider(color_group, "vibrance", _("vibrance"), -1.0, 1.0, 0.01)
     obs.obs_property_set_long_description(prop_vibrance, "Lebendigkeit des Bildes. Positive Werte erhöhen die Lebendigkeit, negative Werte verringern sie.")
     
-
-    
     obs.obs_properties_add_group(props, "color", _("color"), obs.OBS_GROUP_NORMAL, color_group)
     
     -- Vignette
@@ -1368,10 +1436,10 @@ source_info.get_properties = function(data)
     obs.obs_property_set_long_description(prop_vignette_radius, "Radius der Vignette. Positive Werte erhöhen den Radius, negative Werte verringern ihn.")
     
     local prop_vignette_feather = obs.obs_properties_add_float_slider(vignette_group, "vignette_feather", _("vignette_feather"), 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_vignette_feather, "Weichzeichnung der Vignette. Positive Werte erhöhen die Weichzeichnung, negative Werte verringern sie.")
+    obs.obs_property_set_long_description(prop_vignette_feather, _("Weichzeichnung der Vignette. Positive Werte erhöhen die Weichzeichnung, negative Werte verringern sie."))
     
-    local prop_vignette_shape = obs.obs_properties_add_float_slider(vignette_group, "vignette_shape", "Vignette Form", 0.0, 1.0, 0.01)
-    obs.obs_property_set_long_description(prop_vignette_shape, "Form der Vignette. 0 = Kreisförmig, 1 = Ovaler/Rechteckiger.")
+    local prop_vignette_shape = obs.obs_properties_add_float_slider(vignette_group, "vignette_shape", _("vignette_shape"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_vignette_shape, _("Form der Vignette. 0 = Kreisförmig, 1 = Ovaler/Rechteckiger."))
     
     obs.obs_properties_add_group(props, "vignette", _("vignette"), obs.OBS_GROUP_NORMAL, vignette_group)
     
@@ -1379,6 +1447,7 @@ source_info.get_properties = function(data)
     local color_wheels_group = obs.obs_properties_create()
     
     local prop_shadows_color_r = obs.obs_properties_add_float_slider(color_wheels_group, "shadows_color_r", _("shadows_color_r"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(prop_shadows_color_r, _("Rotanteil der Schatten. Positive Werte erhöhen den Rotanteil, negative Werte verringern ihn."))
     obs.obs_property_set_long_description(prop_shadows_color_r, "Rotanteil der Schatten. Positive Werte erhöhen den Rotanteil, negative Werte verringern ihn.")
     
     local prop_shadows_color_g = obs.obs_properties_add_float_slider(color_wheels_group, "shadows_color_g", _("shadows_color_g"), -1.0, 1.0, 0.01)
@@ -1407,6 +1476,62 @@ source_info.get_properties = function(data)
     
     obs.obs_properties_add_group(props, "color_wheels", _("color_wheels"), obs.OBS_GROUP_NORMAL, color_wheels_group)
     
+    -- Vignette-Einstellungen sind bereits in der Hauptgruppe enthalten
+    
+    -- Split-Toning-Gruppe
+    local split_tone_group = obs.obs_properties_create()
+    obs.obs_properties_add_group(props, "split_tone_group", _("split_toning"), obs.OBS_GROUP_NORMAL, split_tone_group)
+    
+    -- Schatten Split-Toning
+    local ss_prop = obs.obs_properties_add_float_slider(split_tone_group, "ss_r", _("shadows_red"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(ss_prop, _("shadow_red_desc"))
+    
+    ss_prop = obs.obs_properties_add_float_slider(split_tone_group, "ss_g", _("shadows_green"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(ss_prop, _("shadow_green_desc"))
+    
+    ss_prop = obs.obs_properties_add_float_slider(split_tone_group, "ss_b", _("shadows_blue"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(ss_prop, _("shadow_blue_desc"))
+    
+    ss_prop = obs.obs_properties_add_float_slider(split_tone_group, "ss_sat", _("shadows_sat"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(ss_prop, _("shadow_sat_desc"))
+    
+    -- Lichter Split-Toning
+    local sh_prop = obs.obs_properties_add_float_slider(split_tone_group, "sh_r", _("highlights_red"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(sh_prop, _("highlight_red_desc"))
+    
+    sh_prop = obs.obs_properties_add_float_slider(split_tone_group, "sh_g", _("highlights_green"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(sh_prop, _("highlight_green_desc"))
+    
+    sh_prop = obs.obs_properties_add_float_slider(split_tone_group, "sh_b", _("highlights_blue"), -1.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(sh_prop, _("highlight_blue_desc"))
+    
+    sh_prop = obs.obs_properties_add_float_slider(split_tone_group, "sh_sat", _("highlights_sat"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(sh_prop, _("highlight_sat_desc"))
+    
+    -- Kreative Effekte
+    local fx_group = obs.obs_properties_create()
+    obs.obs_properties_add_group(props, "fx_group", _("creative_fx"), obs.OBS_GROUP_NORMAL, fx_group)
+    
+    local fx_prop = obs.obs_properties_add_float_slider(fx_group, "sharpen", _("sharpen"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(fx_prop, _("sharpen_desc"))
+    
+    fx_prop = obs.obs_properties_add_float_slider(fx_group, "bloom", _("bloom"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(fx_prop, _("bloom_desc"))
+    
+    fx_prop = obs.obs_properties_add_float_slider(fx_group, "halation", _("halation"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(fx_prop, _("halation_desc"))
+    
+    -- LUT-Gruppe
+    local lut_group = obs.obs_properties_create()
+    obs.obs_properties_add_group(props, "lut_group", _("lut"), obs.OBS_GROUP_NORMAL, lut_group)
+    
+    local lut_path_prop = obs.obs_properties_add_path(lut_group, "lut_path", _("lut_file"), obs.OBS_PATH_FILE, 
+                                                   "LUT-Dateien (*.cube *.png);;Alle Dateien (*.*)", nil)
+    obs.obs_property_set_long_description(lut_path_prop, _("lut_file_desc"))
+    
+    local lut_str_prop = obs.obs_properties_add_float_slider(lut_group, "lut_strength", _("lut_strength"), 0.0, 1.0, 0.01)
+    obs.obs_property_set_long_description(lut_str_prop, _("lut_strength_desc"))
+    
     log_debug("Properties erstellt mit allen Reglern")
     return props
 end
@@ -1431,10 +1556,6 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "vignette_radius", 0.75)
     obs.obs_data_set_default_double(settings, "vignette_feather", 0.5)
     obs.obs_data_set_default_double(settings, "vignette_shape", 0.0)
-    obs.obs_data_set_default_double(settings, "vignette_shape", 0.0)
-    obs.obs_data_set_default_double(settings, "grain_amount", 0.0)
-    obs.obs_data_set_default_double(settings, "grain_size", 50.0)
-    obs.obs_data_set_default_double(settings, "time_seed", 0.0)
     obs.obs_data_set_default_double(settings, "shadows_color_r", 0.0)
     obs.obs_data_set_default_double(settings, "shadows_color_g", 0.0)
     obs.obs_data_set_default_double(settings, "shadows_color_b", 0.0)
@@ -1444,6 +1565,25 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "highlights_color_r", 0.0)
     obs.obs_data_set_default_double(settings, "highlights_color_g", 0.0)
     obs.obs_data_set_default_double(settings, "highlights_color_b", 0.0)
+    
+    -- Split-Toning Defaults
+    obs.obs_data_set_default_double(settings, "ss_r", 0.0)
+    obs.obs_data_set_default_double(settings, "ss_g", 0.0)
+    obs.obs_data_set_default_double(settings, "ss_b", 0.0)
+    obs.obs_data_set_default_double(settings, "ss_sat", 0.0)
+    obs.obs_data_set_default_double(settings, "sh_r", 0.0)
+    obs.obs_data_set_default_double(settings, "sh_g", 0.0)
+    obs.obs_data_set_default_double(settings, "sh_b", 0.0)
+    obs.obs_data_set_default_double(settings, "sh_sat", 0.0)
+    
+    -- Kreative Effekte Defaults
+    obs.obs_data_set_default_double(settings, "sharpen", 0.0)
+    obs.obs_data_set_default_double(settings, "bloom", 0.0)
+    obs.obs_data_set_default_double(settings, "halation", 0.0)
+    
+    -- LUT Defaults
+    obs.obs_data_set_default_string(settings, "lut_path", "")
+    obs.obs_data_set_default_double(settings, "lut_strength", 0.0)
 end
 
 -- Update-Funktion für Filtereinstellungen
@@ -1467,13 +1607,10 @@ source_info.update = function(data, settings)
     data.vignette_amount = obs.obs_data_get_double(settings, "vignette_amount")
     data.vignette_radius = obs.obs_data_get_double(settings, "vignette_radius")
     data.vignette_feather = obs.obs_data_get_double(settings, "vignette_feather")
-    data.vignette_shape = obs.obs_data_get_double(settings, "vignette_shape")
-    data.grain_amount = obs.obs_data_get_double(settings, "grain_amount")
-    data.grain_size = obs.obs_data_get_double(settings, "grain_size")
+    data.vignette_shape = obs.obs_data_get_int(settings, "vignette_shape")
     data.highlight_fade = obs.obs_data_get_double(settings, "highlight_fade")
     data.shadow_fade = obs.obs_data_get_double(settings, "shadow_fade")
     data.black_lift = obs.obs_data_get_double(settings, "black_lift")
-    data.time_seed = obs.obs_data_get_double(settings, "time_seed")
     
     -- Farbrad-Parameter
     data.shadows_color_r = obs.obs_data_get_double(settings, "shadows_color_r")
@@ -1486,6 +1623,39 @@ source_info.update = function(data, settings)
     data.highlights_color_g = obs.obs_data_get_double(settings, "highlights_color_g")
     data.highlights_color_b = obs.obs_data_get_double(settings, "highlights_color_b")
     
+    -- Split-Toning
+    data.ss_r = obs.obs_data_get_double(settings, "ss_r")
+    data.ss_g = obs.obs_data_get_double(settings, "ss_g")
+    data.ss_b = obs.obs_data_get_double(settings, "ss_b")
+    data.ss_sat = obs.obs_data_get_double(settings, "ss_sat")
+    data.sh_r = obs.obs_data_get_double(settings, "sh_r")
+    data.sh_g = obs.obs_data_get_double(settings, "sh_g")
+    data.sh_b = obs.obs_data_get_double(settings, "sh_b")
+    data.sh_sat = obs.obs_data_get_double(settings, "sh_sat")
+    
+    -- Kreative Effekte
+    data.sharpen = obs.obs_data_get_double(settings, "sharpen")
+    data.bloom = obs.obs_data_get_double(settings, "bloom")
+    data.halation = obs.obs_data_get_double(settings, "halation")
+    
+    -- LUT
+    local new_lut_path = obs.obs_data_get_string(settings, "lut_path")
+    if new_lut_path ~= data.lut_path then
+        -- LUT-Pfad hat sich geändert, alte Textur freigeben und neue laden
+        if data.lut_tex then
+            obs.gs_texture_destroy(data.lut_tex)
+            data.lut_tex = nil
+        end
+        
+        data.lut_path = new_lut_path
+        if data.lut_path and data.lut_path ~= "" then
+            data.lut_tex = load_lut(data.lut_path)
+            data.lut_bound = false -- Neu binden beim nächsten Render
+        end
+    end
+    
+    data.lut_strength = obs.obs_data_get_double(settings, "lut_strength")
+    
     -- Einstellungen speichern
     data.settings = settings
     
@@ -1494,17 +1664,9 @@ source_info.update = function(data, settings)
 end
 
 -- Video-Rendering
-source_info.video_render = function(data, effect)
-    if not data then
-        log_debug("Keine Daten verfügbar")
-        return
-    end
-    
-    if not data.effect then
-        log_debug("Kein Effekt verfügbar")
-        if data and data.source then
-            obs.obs_source_skip_video_filter(data.source)
-        end
+source_info.video_render = function(data, _)
+    if not data or not data.effect then
+        obs.obs_source_skip_video_filter(data and data.source)
         return
     end
     
@@ -1516,12 +1678,8 @@ source_info.video_render = function(data, effect)
     
     -- Größe des Ziels ermitteln
     local target = obs.obs_filter_get_target(data.source)
-    local width, height = 0, 0
-    
-    if target ~= nil then
-        width = obs.obs_source_get_base_width(target)
-        height = obs.obs_source_get_base_height(target)
-    end
+    local width = obs.obs_source_get_base_width(target)
+    local height = obs.obs_source_get_base_height(target)
     
     if (width == 0 or height == 0) then
         log_debug("Target hat keine gültige Größe: " .. tostring(width) .. "x" .. tostring(height))
@@ -1534,28 +1692,20 @@ source_info.video_render = function(data, effect)
     
     -- Sichere Fehlerbehandlung während des Renderings
     local success, err = pcall(function()
+        -- Begin des Filter-Prozesses
         obs.obs_source_process_filter_begin(data.source, obs.GS_RGBA, obs.OBS_NO_DIRECT_RENDERING)
         
-        -- Parameter an den Shader übergeben
-        if data.dirty then
+        -- **Pflicht-Loop**: aktiviert den Pass und bindet die Constant-Buffer
+        while obs.gs_effect_loop(data.effect, "Draw") do
+            -- Uniforms innerhalb der Schleife setzen, wenn cur_pass gültig ist
+            -- Metal erfordert dies, da der Constant-Buffer erst hier bereitsteht
             set_shader_params(data)
-            data.dirty = false
+            
+            obs.gs_draw_sprite(nil, 0, width, height)   -- Sprite zeichnen
         end
         
-        -- Effekt anwenden
-        local technique = obs.gs_effect_get_technique(data.effect, "Draw")
-        if technique then
-            obs.gs_technique_begin(technique)
-            obs.gs_technique_begin_pass(technique, 0)
-            
-            obs.obs_source_process_filter_end(data.source, data.effect, width, height)
-            
-            obs.gs_technique_end_pass(technique)
-            obs.gs_technique_end(technique)
-        else
-            log_debug("Technique nicht gefunden")
-            obs.obs_source_process_filter_end(data.source, data.effect, width, height)
-        end
+        -- Filter sauber abschließen (ohne Effect-Parameter!)
+        obs.obs_source_process_filter_end(data.source, data.effect, width, height)
     end)
     
     if not success then
@@ -1584,21 +1734,18 @@ source_info.video_render_preview = function(data)
         
         -- Verwende den Effekt für die Vorschau
         data.target_texture = nil  -- Signalisieren dass wir im Preview-Modus sind
-        if data.dirty then
-            set_shader_params(data)
-        end
         
-        local technique = obs.gs_effect_get_technique(data.effect, "Draw")
-        if not technique then return end
-        
+        -- Blend-State zurücksetzen
         obs.gs_reset_blend_state()
-        obs.gs_technique_begin(technique)
-        obs.gs_technique_begin_pass(technique, 0)
         
-        obs.gs_draw_sprite(nil, 0, data.width, data.height)
-        
-        obs.gs_technique_end_pass(technique)
-        obs.gs_technique_end(technique)
+        -- Kanonisches OBS-Muster mit gs_effect_loop für Metal-Kompatibilität
+        while obs.gs_effect_loop(data.effect, "Draw") do
+            -- Uniforms innerhalb der Schleife setzen, wenn cur_pass gültig ist
+            -- Metal erfordert dies, da der Constant-Buffer erst hier bereitsteht
+            set_shader_params(data)
+            
+            obs.gs_draw_sprite(nil, 0, data.width, data.height)   -- Sprite zeichnen
+        end
     end)
     
     if not success then
@@ -1634,10 +1781,32 @@ source_info.create = function(settings, source)
     data.vignette_amount = 0.0
     data.vignette_radius = 0.75
     data.vignette_feather = 0.5
-    data.vignette_shape = 0.0
-    data.grain_amount = 0.0
-    data.grain_size = 50.0
-    data.time_seed = 0.0
+    data.vignette_shape = 0
+    
+    data.highlight_fade = 0.0
+    data.shadow_fade = 0.0
+    data.black_lift = 0.0
+    
+    -- Split-Toning Defaults
+    data.ss_r = 0.0
+    data.ss_g = 0.0
+    data.ss_b = 0.0
+    data.ss_sat = 0.0
+    data.sh_r = 0.0
+    data.sh_g = 0.0
+    data.sh_b = 0.0
+    data.sh_sat = 0.0
+    
+    -- Kreative Effekte Defaults
+    data.sharpen = 0.0
+    data.bloom = 0.0
+    data.halation = 0.0
+    
+    -- LUT Defaults
+    data.lut_path = ""
+    data.lut_strength = 0.0
+    data.lut_tex = nil
+    data.lut_bound = false
     
     -- Farbrad-Parameter
     data.shadows_color_r = 0.0
@@ -1657,44 +1826,10 @@ source_info.create = function(settings, source)
     -- Shader erstellen und Parameter abrufen
     obs.obs_enter_graphics()
     
-    local function create_shader()
-        local shader_code_to_use = hlsl_shader_code -- Standard für Windows
-        local shader_type = "HLSL"
-        
-        -- Plattformspezifische Shader-Auswahl
-        local platform = get_platform()
-        if platform == "macos" then
-            log_debug_platform("macOS erkannt, verwende verbesserten GLSL-Shader")
-            shader_code_to_use = glsl_shader_code
-            shader_type = "GLSL"
-        end
-        
-        -- HLSL (Windows) oder GLSL (macOS) verwenden
-        log_debug_platform("Erstelle " .. shader_type .. "-Shader für Plattform: " .. platform)
-        
-        -- Shader-Fehler abfangen
-        local shader_error = nil
-        local effect = obs.gs_effect_create(shader_code_to_use, "lumetric_shader", shader_error)
-        
-        if effect == nil then
-            local error_msg = shader_error or "Unbekannter Fehler"
-            log_debug_platform("Fehler beim Erstellen des " .. shader_type .. "-Shaders: " .. error_msg)
-            
-            -- Bei macOS zusätzliche Debug-Informationen
-            if platform == "macos" then
-                log_debug_platform("Versuche alternative GLSL-Version für macOS...")
-            end
-        else
-            log_debug_platform(shader_type .. "-Shader erfolgreich erstellt")
-        end
-        return effect, shader_type, platform
-    end
-    
     local success, err = pcall(function()
-        data.effect, data.shader_type, data.platform = create_shader()
+        data.effect = obs.gs_effect_create(shader_code, "lumetric_shader", nil)
         
         if data.effect ~= nil then
-            log_debug("Shader vom Typ '" .. (data.shader_type or "unbekannt") .. "' wird verwendet")
             -- Parameter für den Shader abrufen
             data.params = {}
             
@@ -1713,23 +1848,34 @@ source_info.create = function(settings, source)
             data.params.vignette_radius = obs.gs_effect_get_param_by_name(data.effect, "vignette_radius")
             data.params.vignette_feather = obs.gs_effect_get_param_by_name(data.effect, "vignette_feather")
             data.params.vignette_shape = obs.gs_effect_get_param_by_name(data.effect, "vignette_shape")
-            data.params.grain_amount = obs.gs_effect_get_param_by_name(data.effect, "grain_amount")
-            data.params.grain_size = obs.gs_effect_get_param_by_name(data.effect, "grain_size")
-            data.params.time_seed = obs.gs_effect_get_param_by_name(data.effect, "time_seed")
             data.params.highlight_fade = obs.gs_effect_get_param_by_name(data.effect, "highlight_fade")
             data.params.shadow_fade = obs.gs_effect_get_param_by_name(data.effect, "shadow_fade")
             data.params.black_lift = obs.gs_effect_get_param_by_name(data.effect, "black_lift")
+            data.params.image = obs.gs_effect_get_param_by_name(data.effect, "image")
+            data.params.buffer_size = obs.gs_effect_get_param_by_name(data.effect, "buffer_size")
             
-            -- Farbrad-Parameter
-            data.params.shadows_color_r = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_r")
-            data.params.shadows_color_g = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_g")
-            data.params.shadows_color_b = obs.gs_effect_get_param_by_name(data.effect, "shadows_color_b")
-            data.params.midtones_color_r = obs.gs_effect_get_param_by_name(data.effect, "midtones_color_r")
-            data.params.midtones_color_g = obs.gs_effect_get_param_by_name(data.effect, "midtones_color_g")
-            data.params.midtones_color_b = obs.gs_effect_get_param_by_name(data.effect, "midtones_color_b")
-            data.params.highlights_color_r = obs.gs_effect_get_param_by_name(data.effect, "highlights_color_r")
-            data.params.highlights_color_g = obs.gs_effect_get_param_by_name(data.effect, "highlights_color_g")
-            data.params.highlights_color_b = obs.gs_effect_get_param_by_name(data.effect, "highlights_color_b")
+            -- Farbrad-Parameter als float3-Vektoren
+            data.params.shadows_color = obs.gs_effect_get_param_by_name(data.effect, "shadows_color")
+            data.params.midtones_color = obs.gs_effect_get_param_by_name(data.effect, "midtones_color")
+            data.params.highlights_color = obs.gs_effect_get_param_by_name(data.effect, "highlights_color")
+            
+            -- Erweiterte Effekte
+            data.params.sharpen_amount = obs.gs_effect_get_param_by_name(data.effect, "sharpen_amount")
+            data.params.bloom_intensity = obs.gs_effect_get_param_by_name(data.effect, "bloom_intensity")
+            data.params.halation = obs.gs_effect_get_param_by_name(data.effect, "halation")
+            data.params.lut_strength = obs.gs_effect_get_param_by_name(data.effect, "lut_strength")
+            data.params.split_shadow = obs.gs_effect_get_param_by_name(data.effect, "split_shadow")
+            data.params.split_highlight = obs.gs_effect_get_param_by_name(data.effect, "split_highlight")
+            data.params.lut_tex = obs.gs_effect_get_param_by_name(data.effect, "lut_tex")
+            
+            -- Debug: Wir können nicht mehr direkt prüfen, ob Parameter gültig sind
+            -- Stattdessen verwenden wir pcall, um Parameter beim Setzen zu prüfen
+            -- Hier loggen wir nur, dass wir die Parameter geladen haben
+            local param_count = 0
+            for k,v in pairs(data.params) do
+                if v then param_count = param_count + 1 end
+            end
+            obs.blog(obs.LOG_INFO, "[Lumetric] " .. param_count .. " Shader-Parameter geladen")
         else
             log_debug("Fehler: Shader konnte nicht geladen werden")
             data.invalid = true
