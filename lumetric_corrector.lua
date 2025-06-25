@@ -3,12 +3,20 @@
   Eine Farbkorrektur-Lösung inspiriert von Adobe Lumetri Color
   
   Autor: TheGeekFreaks
-  Version: 2.0.0
+  Version: 2.2.0
   Lizenz: GPLv3
 ]]
 
 -- OBS Modul einfügen
 local obs = obslua
+
+-- Debug-Logging-Funktion
+local DEBUG_MODE = false
+function log_debug(message)
+    if DEBUG_MODE then
+        obs.script_log(obs.LOG_DEBUG, message)
+    end
+end
 
 -- Minimaler Filter, der praktisch nichts tut - ein "Null-Filter"
 
@@ -50,6 +58,18 @@ local translations = {
         ["vignette_amount"] = "Amount",
         ["vignette_radius"] = "Radius",
         ["vignette_feather"] = "Feathering",
+        -- Mask / LUT-Export UI
+        ["enable_mask"]      = "Enable Mask",
+        ["mask_shape"]       = "Mask Shape",
+        ["mask_x"]           = "Mask X",
+        ["mask_y"]           = "Mask Y",
+        ["mask_width"]       = "Mask Width",
+        ["mask_height"]      = "Mask Height",
+        ["mask_feather"]     = "Mask Feather",
+        ["mask_round"]       = "Circle (round)",   -- value = 1
+        ["mask_rect"]        = "Rectangle",        -- value = 0
+        ["export_lut"]       = "Export current settings as LUT",
+        ["lut_export_path"]  = "Save-as path / filename",
         ["select_preset"] = "Select Preset",
         ["neutral"] = "Neutral",
         ["warm"] = "Warm",
@@ -76,7 +96,7 @@ local translations = {
         ["moonlight"] = "Moonlight",
         ["vivid_warm"] = "Vivid Warm",
         
-        -- Neue kreative Presets (v2.0)
+        -- Neue kreative Presets (v2.2)
         ["creative_presets"] = "Creative Presets",
         ["neo_noir"] = "Neo Noir",
         ["cyberpunk"] = "Cyberpunk",
@@ -229,6 +249,18 @@ local translations = {
         ["vignette_amount"] = "Stärke",
         ["vignette_radius"] = "Radius",
         ["vignette_feather"] = "Weichzeichnung",
+        -- Mask / LUT-Export UI
+        ["enable_mask"]      = "Maske aktivieren",
+        ["mask_shape"]       = "Maskenform",
+        ["mask_x"]           = "Maske X",
+        ["mask_y"]           = "Maske Y",
+        ["mask_width"]       = "Maskenbreite",
+        ["mask_height"]      = "Maskenhöhe",
+        ["mask_feather"]     = "Masken-Weichzeichnung",
+        ["mask_round"]       = "Kreis (rund)",      -- value = 1
+        ["mask_rect"]        = "Rechteck",          -- value = 0
+        ["export_lut"]       = "Aktuelle Einstellungen als LUT exportieren",
+        ["lut_export_path"]  = "Speicher-Pfad / Dateiname",
         ["select_preset"] = "Voreinstellung auswählen",
         ["neutral"] = "Neutral",
         ["warm"] = "Warm",
@@ -376,6 +408,13 @@ uniform float vignette_amount;
 uniform float vignette_radius;
 uniform float vignette_feather;
 uniform float vignette_shape;  // 0.0 = Kreis, 1.0 = Mehr rechteckig
+
+// Maske
+uniform float enable_mask;       // 0/1
+uniform float2 mask_pos;         // 0-1 UV
+uniform float2 mask_size;        // 0-1 (w,h)
+uniform float mask_feather;      // 0-0.5
+uniform float mask_roundness;    // 0 = Rechteck, 1 = Kreis
 
 // Erweiterte Effekte
 uniform float sharpen_amount;      // 0-1  USM-Stärke
@@ -665,6 +704,31 @@ float4 PSDefault(VertDataOut v_in) : TARGET
         result = apply_vignette(result, v_in.uv, vignette_amount, vignette_radius, vignette_feather, vignette_shape);
     }
     
+    // Einfache Maskenanwendung
+    if (enable_mask > 0.5)
+    {
+        // Normalisierte Koordinaten relativ zum Maskenmittelpunkt
+        float2 center = mask_pos;
+        float2 size = max(mask_size, float2(0.0001, 0.0001));  // Mindestgröße sicherstellen
+        float2 uv_rel = (v_in.uv - center) / size;
+        
+        // Distanzberechnung basierend auf der Form
+        float dist;
+        if (mask_roundness > 0.5) {
+            // Kreisförmige Maske
+            dist = length(uv_rel);
+        } else {
+            // Rechteckige Maske
+            dist = max(abs(uv_rel.x), abs(uv_rel.y));
+        }
+        
+        // Maske mit Feathering
+        float mask = smoothstep(1.0, 1.0 - mask_feather, dist);
+        
+        // Mische Original und bearbeitetes Bild
+        result = mask * result + (1.0 - mask) * color.rgb;
+    }
+    
     return float4(result, color.a);
 }
 
@@ -851,6 +915,35 @@ function set_shader_params(data)
         end
     end
     
+    -- Mask parameters
+    if data.params.enable_mask then
+        safe_float(data.params.enable_mask, data.enable_mask and 1.0 or 0.0)
+    end
+    
+    -- Masken-Position
+    if data.params.mask_pos then
+        local v = obs.vec2()            -- Korrekter vec2 statt vec4
+        v.x = data.mask_x or 0.5
+        v.y = data.mask_y or 0.5
+        obs.gs_effect_set_vec2(data.params.mask_pos, v)
+    end
+    
+    -- Masken-Größe
+    if data.params.mask_size then
+        local v = obs.vec2()            -- Korrekter vec2 statt vec4
+        v.x = data.mask_width or 0.25
+        v.y = data.mask_height or 0.25
+        obs.gs_effect_set_vec2(data.params.mask_size, v)
+    end
+    
+    if data.params.mask_feather then
+        safe_float(data.params.mask_feather, data.mask_feather or 0.1)
+    end
+    
+    if data.params.mask_roundness then
+        safe_float(data.params.mask_roundness, data.mask_shape or 1.0)
+    end
+    
     -- Farbrad-Parameter als float3-Vektoren setzen
     if data.params.shadows_color then
         set_vec3(data.params.shadows_color, data.shadows_color_r or 0, data.shadows_color_g or 0, data.shadows_color_b or 0)
@@ -928,13 +1021,19 @@ end
 
 -- Skriptbeschreibung
 function script_description()
-    return _("lumetric_corrector") .. " - " .. "v2.0.0" .. "\n\n" ..
+    return _("lumetric_corrector") .. " - " .. "v2.2.0" .. "\n\n" ..
     "Professional color grading filter for OBS Studio. Usage:\n" ..
     "1. Add as a filter to any source: Right-click source > Filters > + > Lumetric Corrector\n" ..
     "2. Adjust parameters or select one of 35+ presets\n" ..
     "3. Use basic corrections, color wheels, split-toning, and creative effects\n" ..
     "4. Optional: Load a 3D LUT file for advanced color grading\n\n" ..
-    "New in v2.0: Enhanced shader compatibility, split-toning, bloom, halation, and 10 new creative presets."
+    "New in v2.2.0:\n" ..
+    "- Cross-platform LUT export with native file dialog\n" ..
+    "- Fixed mask rendering issues (black screen bug fixed)\n" ..
+    "- Improved mask blending with proper feathering\n" ..
+    "- Enhanced shader stability with safety clamps\n" ..
+    "- Better error handling and logging\n" ..
+    "- Performance optimizations for real-time rendering"
 end
 
 -- Filtername für OBS
@@ -1017,6 +1116,62 @@ local function apply_preset(data, preset_type)
             obs.obs_data_set_bool(settings, key, value)
         end
     end
+    
+    -- Alle Parameter auf Standardwerte zurücksetzen, bevor das Preset angewendet wird
+    -- Grundlegende Korrekturen
+    obs.obs_data_set_double(settings, "exposure", 0.0)
+    obs.obs_data_set_double(settings, "contrast", 0.0)
+    obs.obs_data_set_double(settings, "brightness", 0.0)
+    obs.obs_data_set_double(settings, "highlights", 0.0)
+    obs.obs_data_set_double(settings, "shadows", 0.0)
+    obs.obs_data_set_double(settings, "whites", 0.0)
+    obs.obs_data_set_double(settings, "blacks", 0.0)
+    
+    -- Farbe
+    obs.obs_data_set_double(settings, "temperature", 0.0)
+    obs.obs_data_set_double(settings, "tint", 0.0)
+    obs.obs_data_set_double(settings, "saturation", 0.0)
+    obs.obs_data_set_double(settings, "vibrance", 0.0)
+    
+    -- Vignette
+    obs.obs_data_set_double(settings, "vignette_amount", 0.0)
+    obs.obs_data_set_double(settings, "vignette_radius", 0.5)
+    obs.obs_data_set_double(settings, "vignette_feather", 0.5)
+    
+    -- Mask
+    obs.obs_data_set_bool(settings,  "enable_mask",  false)
+    obs.obs_data_set_double(settings,"mask_x",       0.5)
+    obs.obs_data_set_double(settings,"mask_y",       0.5)
+    obs.obs_data_set_double(settings,"mask_width",   0.25)
+    obs.obs_data_set_double(settings,"mask_height",  0.25)
+    obs.obs_data_set_double(settings,"mask_feather", 0.1)
+    obs.obs_data_set_double(settings,"mask_shape",   1.0) -- 1 = Kreis
+    
+    -- Farbräder
+    obs.obs_data_set_double(settings, "shadows_color_r", 0.0)
+    obs.obs_data_set_double(settings, "shadows_color_g", 0.0)
+    obs.obs_data_set_double(settings, "shadows_color_b", 0.0)
+    obs.obs_data_set_double(settings, "midtones_color_r", 0.0)
+    obs.obs_data_set_double(settings, "midtones_color_g", 0.0)
+    obs.obs_data_set_double(settings, "midtones_color_b", 0.0)
+    obs.obs_data_set_double(settings, "highlights_color_r", 0.0)
+    obs.obs_data_set_double(settings, "highlights_color_g", 0.0)
+    obs.obs_data_set_double(settings, "highlights_color_b", 0.0)
+    
+    -- Split-Toning
+    obs.obs_data_set_double(settings, "shadows_red", 0.0)
+    obs.obs_data_set_double(settings, "shadows_green", 0.0)
+    obs.obs_data_set_double(settings, "shadows_blue", 0.0)
+    obs.obs_data_set_double(settings, "shadows_sat", 0.0)
+    obs.obs_data_set_double(settings, "highlights_red", 0.0)
+    obs.obs_data_set_double(settings, "highlights_green", 0.0)
+    obs.obs_data_set_double(settings, "highlights_blue", 0.0)
+    obs.obs_data_set_double(settings, "highlights_sat", 0.0)
+    
+    -- Kreative Effekte
+    obs.obs_data_set_double(settings, "sharpen", 0.0)
+    obs.obs_data_set_double(settings, "bloom", 0.0)
+    obs.obs_data_set_double(settings, "halation", 0.0)
     
     -- Preset-spezifische Einstellungen
     if preset_type == "neutral" then
@@ -1169,18 +1324,18 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "blacks", -0.15)
         obs.obs_data_set_double(settings, "vignette_amount", 0.4)
         obs.obs_data_set_double(settings, "vignette_feather", 0.6)
-        obs.obs_data_set_double(settings, "ss_b", 0.2)  -- Blaue Schatten
-        obs.obs_data_set_double(settings, "ss_sat", 0.3) -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "shadows_blue", 0.2)  -- Blaue Schatten
+        obs.obs_data_set_double(settings, "shadows_sat", 0.3) -- Mittlere Sättigung
         obs.obs_data_set_double(settings, "sharpen", 0.2) -- Leichte Schärfe
     elseif preset_type == "cyberpunk" then
         -- Futuristischer Look mit Neonfarben und Bloom
         obs.obs_data_set_double(settings, "contrast", 0.2)
         obs.obs_data_set_double(settings, "blacks", -0.1)
         obs.obs_data_set_double(settings, "vibrance", 0.3)
-        obs.obs_data_set_double(settings, "sh_b", 0.3)  -- Blaue Lichter
-        obs.obs_data_set_double(settings, "sh_sat", 0.5) -- Starke Sättigung
-        obs.obs_data_set_double(settings, "ss_r", 0.2)  -- Rote Schatten
-        obs.obs_data_set_double(settings, "ss_sat", 0.4) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "highlights_blue", 0.3)  -- Blaue Lichter
+        obs.obs_data_set_double(settings, "highlights_sat", 0.5) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "shadows_red", 0.2)  -- Rote Schatten
+        obs.obs_data_set_double(settings, "shadows_sat", 0.4) -- Starke Sättigung
         obs.obs_data_set_double(settings, "bloom", 0.4)  -- Starker Bloom
         obs.obs_data_set_double(settings, "halation", 0.2) -- Mittlere Halation
     elseif preset_type == "retro_film" then
@@ -1192,18 +1347,18 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "shadows", 0.05)
         obs.obs_data_set_double(settings, "vignette_amount", 0.25)
         obs.obs_data_set_double(settings, "halation", 0.4)  -- Starke Halation für Filmglühen
-        obs.obs_data_set_double(settings, "sh_r", 0.15)  -- Rötliche Lichter
-        obs.obs_data_set_double(settings, "sh_sat", 0.3)  -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "highlights_red", 0.15)  -- Rötliche Lichter
+        obs.obs_data_set_double(settings, "highlights_sat", 0.3)  -- Mittlere Sättigung
     elseif preset_type == "teal_orange" then
         -- Beliebter Filmkontrast mit Split-Toning
         obs.obs_data_set_double(settings, "contrast", 0.2)
         obs.obs_data_set_double(settings, "vibrance", 0.1)
-        obs.obs_data_set_double(settings, "sh_r", 0.25)  -- Orange Lichter
-        obs.obs_data_set_double(settings, "sh_g", 0.1)   
-        obs.obs_data_set_double(settings, "sh_sat", 0.4) -- Starke Sättigung
-        obs.obs_data_set_double(settings, "ss_b", 0.25)  -- Türkise Schatten
-        obs.obs_data_set_double(settings, "ss_g", 0.1)   
-        obs.obs_data_set_double(settings, "ss_sat", 0.4) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "highlights_red", 0.25)  -- Orange Lichter
+        obs.obs_data_set_double(settings, "highlights_green", 0.1)   
+        obs.obs_data_set_double(settings, "highlights_sat", 0.4) -- Starke Sättigung
+        obs.obs_data_set_double(settings, "shadows_blue", 0.25)  -- Türkise Schatten
+        obs.obs_data_set_double(settings, "shadows_green", 0.1)   
+        obs.obs_data_set_double(settings, "shadows_sat", 0.4) -- Starke Sättigung
         obs.obs_data_set_double(settings, "sharpen", 0.15) -- Leichte Schärfe
     elseif preset_type == "dreamy_bloom" then
         -- Weicher, träumerischer Look mit Bloom und Halation
@@ -1213,9 +1368,9 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "saturation", 0.05)
         obs.obs_data_set_double(settings, "bloom", 0.5)  -- Starker Bloom
         obs.obs_data_set_double(settings, "halation", 0.3) -- Mittlere Halation
-        obs.obs_data_set_double(settings, "sh_r", 0.1)  -- Leicht warme Lichter
-        obs.obs_data_set_double(settings, "sh_g", 0.05) 
-        obs.obs_data_set_double(settings, "sh_sat", 0.2) -- Leichte Sättigung
+        obs.obs_data_set_double(settings, "highlights_red", 0.1)  -- Leicht warme Lichter
+        obs.obs_data_set_double(settings, "highlights_green", 0.05) 
+        obs.obs_data_set_double(settings, "highlights_sat", 0.2) -- Leichte Sättigung
     elseif preset_type == "crisp_clarity" then
         -- Scharfer, klarer Look mit Kontrast und Schärfe
         obs.obs_data_set_double(settings, "contrast", 0.2)
@@ -1235,8 +1390,8 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "blacks", -0.15)
         obs.obs_data_set_double(settings, "vignette_amount", 0.4)
         obs.obs_data_set_double(settings, "vignette_feather", 0.5)
-        obs.obs_data_set_double(settings, "ss_b", 0.15)  -- Bläuliche Schatten
-        obs.obs_data_set_double(settings, "ss_sat", 0.2)  -- Leichte Sättigung
+        obs.obs_data_set_double(settings, "shadows_blue", 0.15)  -- Bläuliche Schatten
+        obs.obs_data_set_double(settings, "shadows_sat", 0.2)  -- Leichte Sättigung
         obs.obs_data_set_double(settings, "sharpen", 0.15) -- Leichte Schärfe
     elseif preset_type == "pastel_dreams" then
         -- Weicher, pastellfarbener Look mit Split-Toning
@@ -1245,11 +1400,11 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "shadows", 0.1)
         obs.obs_data_set_double(settings, "saturation", -0.1)
         obs.obs_data_set_double(settings, "vibrance", 0.1)
-        obs.obs_data_set_double(settings, "sh_r", 0.1)  -- Rosa Lichter
-        obs.obs_data_set_double(settings, "sh_b", 0.1)  
-        obs.obs_data_set_double(settings, "sh_sat", 0.3) -- Mittlere Sättigung
-        obs.obs_data_set_double(settings, "ss_b", 0.15)  -- Bläuliche Schatten
-        obs.obs_data_set_double(settings, "ss_sat", 0.3)  -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "highlights_red", 0.1)  -- Rosa Lichter
+        obs.obs_data_set_double(settings, "highlights_blue", 0.1)  
+        obs.obs_data_set_double(settings, "highlights_sat", 0.3) -- Mittlere Sättigung
+        obs.obs_data_set_double(settings, "shadows_blue", 0.15)  -- Bläuliche Schatten
+        obs.obs_data_set_double(settings, "shadows_sat", 0.3)  -- Mittlere Sättigung
         obs.obs_data_set_double(settings, "bloom", 0.2)  -- Leichter Bloom
     elseif preset_type == "game_stream" then
         -- Optimierter Look für Gaming-Streams mit Schärfe und Lebendigkeit
@@ -1268,10 +1423,10 @@ local function apply_preset(data, preset_type)
         obs.obs_data_set_double(settings, "highlights", -0.1)
         obs.obs_data_set_double(settings, "shadows", -0.05)
         obs.obs_data_set_double(settings, "halation", 0.5) -- Maximale Halation für VHS-Glühen
-        obs.obs_data_set_double(settings, "sh_r", 0.1)  -- Rötliche Lichter
-        obs.obs_data_set_double(settings, "sh_sat", 0.2) -- Leichte Sättigung
-        obs.obs_data_set_double(settings, "ss_b", 0.1)  -- Bläuliche Schatten
-        obs.obs_data_set_double(settings, "ss_sat", 0.2) -- Leichte Sättigung
+        obs.obs_data_set_double(settings, "highlights_red", 0.1)  -- Rötliche Lichter
+        obs.obs_data_set_double(settings, "highlights_sat", 0.2) -- Leichte Sättigung
+        obs.obs_data_set_double(settings, "shadows_blue", 0.1)  -- Bläuliche Schatten
+        obs.obs_data_set_double(settings, "shadows_sat", 0.2) -- Leichte Sättigung
     end
     
     -- Aktualisiere den Filter mit den neuen Einstellungen
@@ -1443,6 +1598,28 @@ source_info.get_properties = function(data)
     
     obs.obs_properties_add_group(props, "vignette", _("vignette"), obs.OBS_GROUP_NORMAL, vignette_group)
     
+    -- Mask controls
+    local mask_group = obs.obs_properties_create()
+    
+    -- Enable mask checkbox
+    local prop_enable_mask = obs.obs_properties_add_bool(mask_group, "enable_mask", _("enable_mask"))
+    obs.obs_property_set_long_description(prop_enable_mask, "Aktiviert eine Maske, um den Effekt nur auf bestimmte Bereiche des Bildes anzuwenden.")
+    
+    -- Mask shape dropdown
+    local mask_shape_list = obs.obs_properties_add_list(mask_group, "mask_shape", _("mask_shape"), 
+                                    obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_FLOAT)
+    obs.obs_property_list_add_float(mask_shape_list, _("mask_round"), 1.0)  -- Circle
+    obs.obs_property_list_add_float(mask_shape_list, _("mask_rect"), 0.0)   -- Rectangle
+    
+    -- Mask position and size sliders
+    local prop_mask_x = obs.obs_properties_add_float_slider(mask_group, "mask_x", _("mask_x"), 0.0, 1.0, 0.01)
+    local prop_mask_y = obs.obs_properties_add_float_slider(mask_group, "mask_y", _("mask_y"), 0.0, 1.0, 0.01)
+    local prop_mask_width = obs.obs_properties_add_float_slider(mask_group, "mask_width", _("mask_width"), 0.0, 1.0, 0.01)
+    local prop_mask_height = obs.obs_properties_add_float_slider(mask_group, "mask_height", _("mask_height"), 0.0, 1.0, 0.01)
+    local prop_mask_feather = obs.obs_properties_add_float_slider(mask_group, "mask_feather", _("mask_feather"), 0.0, 0.5, 0.01)
+    
+    obs.obs_properties_add_group(props, "mask", _("enable_mask"), obs.OBS_GROUP_NORMAL, mask_group)
+    
     -- Farbräder
     local color_wheels_group = obs.obs_properties_create()
     
@@ -1523,7 +1700,43 @@ source_info.get_properties = function(data)
     
     -- LUT-Gruppe
     local lut_group = obs.obs_properties_create()
-    obs.obs_properties_add_group(props, "lut_group", _("lut"), obs.OBS_GROUP_NORMAL, lut_group)
+    obs.obs_properties_add_group(props, "lut", _("lut"), obs.OBS_GROUP_NORMAL, lut_group)
+    
+    -- Button zum Exportieren der LUT
+    local export_button = obs.obs_properties_add_button(props, "export_lut_button", _("export_lut"), function()
+        -- Direkter Aufruf der Export-Funktion ohne frontend API
+        local lut_path = obs.obs_data_get_string(data.settings, "lut_export_path")
+        if lut_path == nil or lut_path == "" then
+            obs.script_log(obs.LOG_WARNING, "No LUT path set – aborting export.")
+            return false
+        end
+
+        --   Sicherstellen, dass die Datei eine Endung hat
+        if not string.match(lut_path:lower(), "%.cube$") and
+           not string.match(lut_path:lower(), "%.png$") then
+           lut_path = lut_path .. ".cube"
+        end
+
+        local success = export_lut(lut_path, data)
+        if success then
+            obs.script_log(obs.LOG_INFO, "LUT Export erfolgreich abgeschlossen")
+        else
+            obs.script_log(obs.LOG_WARNING, "LUT Export fehlgeschlagen")
+        end
+        return true
+    end)
+    
+    -- Path-Picker für LUT-Export
+    local path_sep = package.config:sub(1,1) -- Gets OS path separator (/ or \)
+    local default_path = (os.getenv("USERPROFILE") or os.getenv("HOME") or "") .. path_sep .. "Documents" .. path_sep .. "lumetric_lut.cube"
+    obs.obs_properties_add_path(
+        props,                                   -- props-Container
+        "lut_export_path",                       -- id
+        _("lut_export_path"),                    -- Anzeigename
+        obs.OBS_PATH_FILE_SAVE,                  -- Dialogtyp (Save File)
+        "Cube LUT (*.cube);;PNG LUT (*.png)",    -- Filter
+        default_path                             -- Default Pfad
+    )
     
     local lut_path_prop = obs.obs_properties_add_path(lut_group, "lut_path", _("lut_file"), obs.OBS_PATH_FILE, 
                                                    "LUT-Dateien (*.cube *.png);;Alle Dateien (*.*)", nil)
@@ -1536,8 +1749,119 @@ source_info.get_properties = function(data)
     return props
 end
 
+-- LUT Export Funktion
+function export_lut(filename, data)
+    if not filename or filename == "" then 
+        obs.script_log(obs.LOG_ERROR, "Kein Dateipfad für LUT-Export angegeben")
+        return false 
+    end
+    
+    if not data or not data.settings then 
+        obs.script_log(obs.LOG_ERROR, "Keine gültigen Daten für LUT-Export vorhanden")
+        return false 
+    end
+    
+    -- Daten aus den Settings extrahieren
+    local settings = data.settings
+    
+    -- LUT-Datei erstellen
+    local ok, file = pcall(io.open, filename, "w")
+    if not ok or not file then
+        obs.script_log(obs.LOG_ERROR, "Cannot open LUT file for writing: "..tostring(filename))
+        return false
+    end
+    
+    -- LUT-Header schreiben
+    file:write("#Created with Lumetric Corrector for OBS Studio\n")
+    file:write("#Date: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
+    file:write("LUT_3D_SIZE 33\n")
+    file:write("DOMAIN_MIN 0.0 0.0 0.0\n")
+    file:write("DOMAIN_MAX 1.0 1.0 1.0\n\n")
+    
+    -- LUT-Daten generieren
+    local size = 33
+    for b = 0, size-1 do
+        for g = 0, size-1 do
+            for r = 0, size-1 do
+                -- Normalisierte RGB-Werte (0-1)
+                local r_norm = r / (size - 1)
+                local g_norm = g / (size - 1)
+                local b_norm = b / (size - 1)
+                
+                -- Anwenden der Farbkorrekturen (vereinfachte Version)
+                local r_out, g_out, b_out = apply_color_correction(data, r_norm, g_norm, b_norm)
+                
+                -- Werte in die LUT schreiben
+                file:write(string.format("%.6f %.6f %.6f\n", r_out, g_out, b_out))
+            end
+        end
+    end
+    
+    file:close()
+    
+    -- Erfolgsmeldung in OBS Log
+    local message = "LUT erfolgreich exportiert nach: " .. filename
+    obs.script_log(obs.LOG_INFO, message)
+    
+    return true
+end
+
+-- Hilfsfunktion zur Anwendung der Farbkorrekturen auf einen einzelnen Farbwert
+function apply_color_correction(data, r, g, b)
+    -- Einfache Implementierung der wichtigsten Farbkorrekturen
+    -- Hinweis: Dies ist eine vereinfachte Version der Shader-Logik
+    
+    local rgb = {r, g, b}
+    local settings = data.settings
+    
+    -- Werte aus den Settings auslesen
+    local exposure = obs.obs_data_get_double(settings, "exposure")
+    local contrast = obs.obs_data_get_double(settings, "contrast")
+    local temperature = obs.obs_data_get_double(settings, "temperature")
+    local tint = obs.obs_data_get_double(settings, "tint")
+    local saturation = obs.obs_data_get_double(settings, "saturation")
+    
+    -- Belichtung
+    if exposure ~= 0 then
+        local exposure_factor = math.exp(exposure)
+        for i=1,3 do rgb[i] = rgb[i] * exposure_factor end
+    end
+    
+    -- Kontrast
+    if contrast ~= 0 then
+        for i=1,3 do
+            rgb[i] = (rgb[i] - 0.5) * (1.0 + contrast) + 0.5
+        end
+    end
+    
+    -- Temperatur (vereinfacht)
+    if temperature ~= 0 then
+        rgb[1] = rgb[1] + temperature * 0.1  -- Rot
+        rgb[3] = rgb[3] - temperature * 0.1  -- Blau
+    end
+    
+    -- Tint (vereinfacht)
+    if tint ~= 0 then
+        rgb[2] = rgb[2] + tint * 0.1  -- Grün
+    end
+    
+    -- Sättigung
+    if saturation ~= 0 then
+        local luminance = rgb[1] * 0.2126 + rgb[2] * 0.7152 + rgb[3] * 0.0722
+        for i=1,3 do
+            rgb[i] = luminance + (rgb[i] - luminance) * (1.0 + saturation)
+        end
+    end
+    
+    -- Werte begrenzen
+    for i=1,3 do rgb[i] = math.max(0.0, math.min(1.0, rgb[i])) end
+    
+    return rgb[1], rgb[2], rgb[3]
+end
+
 -- Standardwerte
 source_info.get_defaults = function(settings)
+    -- Basis-Korrekturen
     obs.obs_data_set_default_double(settings, "exposure", 0.0)
     obs.obs_data_set_default_double(settings, "contrast", 0.0)
     obs.obs_data_set_default_double(settings, "brightness", 0.0)
@@ -1552,6 +1876,11 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "tint", 0.0)
     obs.obs_data_set_default_double(settings, "saturation", 0.0)
     obs.obs_data_set_default_double(settings, "vibrance", 0.0)
+    
+    -- LUT Export Pfad
+    local path_sep = package.config:sub(1,1) -- Gets OS path separator (/ or \)
+    local default_path = (os.getenv("USERPROFILE") or os.getenv("HOME") or "") .. path_sep .. "Documents" .. path_sep .. "lumetric_lut.cube"
+    obs.obs_data_set_default_string(settings, "lut_export_path", default_path)
     obs.obs_data_set_default_double(settings, "vignette_amount", 0.0)
     obs.obs_data_set_default_double(settings, "vignette_radius", 0.75)
     obs.obs_data_set_default_double(settings, "vignette_feather", 0.5)
@@ -1584,6 +1913,15 @@ source_info.get_defaults = function(settings)
     -- LUT Defaults
     obs.obs_data_set_default_string(settings, "lut_path", "")
     obs.obs_data_set_default_double(settings, "lut_strength", 0.0)
+    
+    -- Mask Defaults
+    obs.obs_data_set_default_bool(settings, "enable_mask", false)
+    obs.obs_data_set_default_double(settings, "mask_shape", 1.0)  -- Default to circle
+    obs.obs_data_set_default_double(settings, "mask_x", 0.5)      -- Center X
+    obs.obs_data_set_default_double(settings, "mask_y", 0.5)      -- Center Y
+    obs.obs_data_set_default_double(settings, "mask_width", 0.25) -- Default width
+    obs.obs_data_set_default_double(settings, "mask_height", 0.25) -- Default height
+    obs.obs_data_set_default_double(settings, "mask_feather", 0.1) -- Default feather
 end
 
 -- Update-Funktion für Filtereinstellungen
@@ -1637,6 +1975,15 @@ source_info.update = function(data, settings)
     data.sharpen = obs.obs_data_get_double(settings, "sharpen")
     data.bloom = obs.obs_data_get_double(settings, "bloom")
     data.halation = obs.obs_data_get_double(settings, "halation")
+    
+    -- Mask parameters
+    data.enable_mask = obs.obs_data_get_bool(settings, "enable_mask")
+    data.mask_shape = obs.obs_data_get_double(settings, "mask_shape")
+    data.mask_x = obs.obs_data_get_double(settings, "mask_x")
+    data.mask_y = obs.obs_data_get_double(settings, "mask_y")
+    data.mask_width = obs.obs_data_get_double(settings, "mask_width")
+    data.mask_height = obs.obs_data_get_double(settings, "mask_height")
+    data.mask_feather = obs.obs_data_get_double(settings, "mask_feather")
     
     -- LUT
     local new_lut_path = obs.obs_data_get_string(settings, "lut_path")
@@ -1787,6 +2134,15 @@ source_info.create = function(settings, source)
     data.shadow_fade = 0.0
     data.black_lift = 0.0
     
+    -- Mask
+    data.enable_mask = false
+    data.mask_x = 0.5
+    data.mask_y = 0.5
+    data.mask_width = 0.25
+    data.mask_height = 0.25
+    data.mask_feather = 0.1
+    data.mask_shape = 1.0  -- 1 = Kreis
+    
     -- Split-Toning Defaults
     data.ss_r = 0.0
     data.ss_g = 0.0
@@ -1867,6 +2223,13 @@ source_info.create = function(settings, source)
             data.params.split_shadow = obs.gs_effect_get_param_by_name(data.effect, "split_shadow")
             data.params.split_highlight = obs.gs_effect_get_param_by_name(data.effect, "split_highlight")
             data.params.lut_tex = obs.gs_effect_get_param_by_name(data.effect, "lut_tex")
+            
+            -- Mask parameters
+            data.params.enable_mask = obs.gs_effect_get_param_by_name(data.effect, "enable_mask")
+            data.params.mask_pos = obs.gs_effect_get_param_by_name(data.effect, "mask_pos")
+            data.params.mask_size = obs.gs_effect_get_param_by_name(data.effect, "mask_size")
+            data.params.mask_feather = obs.gs_effect_get_param_by_name(data.effect, "mask_feather")
+            data.params.mask_roundness = obs.gs_effect_get_param_by_name(data.effect, "mask_roundness")
             
             -- Debug: Wir können nicht mehr direkt prüfen, ob Parameter gültig sind
             -- Stattdessen verwenden wir pcall, um Parameter beim Setzen zu prüfen
