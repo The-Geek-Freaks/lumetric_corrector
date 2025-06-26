@@ -4,7 +4,7 @@
   <p>Perfect for streamers, content creators, and videographers seeking cinematic quality.</p>
 
   ![Downloads](https://img.shields.io/github/downloads/The-Geek-Freaks/lumetric_corrector/total)
-  ![Version](https://img.shields.io/badge/Version-1.1.2-blue)
+  ![Version](https://img.shields.io/badge/Version-2.2.0-blue)
   ![OBS-Lua](https://img.shields.io/badge/OBS--Lua-Compatible-green.svg)
   ![OBS](https://img.shields.io/badge/OBS-30.0+-purple.svg)
   ![Windows](https://img.shields.io/badge/Windows-10%2F11-blue)
