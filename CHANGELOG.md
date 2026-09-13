@@ -5,7 +5,7 @@ All notable changes to the Lumetric Corrector project will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.0] - 2025-06-26
+## [2.2.0] - 2025-06-29
 
 ### Added
 - **Cross-platform LUT Export**: Native file dialog for selecting LUT export location
@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Default path to user's Documents folder
 
 ### Fixed
+- **LUT Loading and Application**: Fixed broken LUT functionality
+  - Implemented proper LUT image loading using gs_image_file API
+  - Added texture initialization and shader parameter binding
+  - Fixed LUT mix control to properly blend between original and LUT-graded image
+  - Added cross-platform support for PNG and CUBE LUT formats
 - **Critical Mask Rendering Bug**: Fixed black screen issue when using mask
   - Corrected vector type mismatch (vec4 → vec2) for mask position and size
   - Added safety clamps to prevent division by zero in mask size calculations

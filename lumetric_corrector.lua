@@ -1007,6 +1007,20 @@ local function log_debug(message)
     end
 end
 
+-- Execute one graphics operation while guaranteeing that the OBS graphics lock
+-- is released even when the wrapped call raises a Lua error.
+local function graphics_call(callback)
+    obs.obs_enter_graphics()
+    local success, result = pcall(callback)
+    obs.obs_leave_graphics()
+
+    if not success then
+        log_debug("Fehler im Grafik-Kontext: " .. tostring(result))
+    end
+
+    return success, result
+end
+
 -- Übersetzungsfunktion
 function _(key)
     local lang = obs.obs_get_locale()
@@ -1067,9 +1081,12 @@ end
 -- LUT-Textur laden
 local function load_lut(path)
     if not path or path == "" then return nil end
-    local tex = obs.gs_texture_create_from_file(path)
-    if not tex then
+    local success, tex = graphics_call(function()
+        return obs.gs_texture_create_from_file(path)
+    end)
+    if not success or not tex then
         obs.blog(obs.LOG_ERROR, "[Lumetric] LUT-Load failed: "..path)
+        return nil
     end
     return tex
 end
@@ -1924,11 +1941,23 @@ source_info.get_defaults = function(settings)
     obs.obs_data_set_default_double(settings, "mask_feather", 0.1) -- Default feather
 end
 
+-- Keep an owned settings reference because property-button callbacks use it
+-- after create/update has returned.  The callback argument itself is borrowed.
+local function retain_settings(data, settings)
+    if settings ~= nil then
+        obs.obs_data_addref(settings)
+    end
+    if data.settings ~= nil then
+        obs.obs_data_release(data.settings)
+    end
+    data.settings = settings
+end
+
 -- Update-Funktion für Filtereinstellungen
 source_info.update = function(data, settings)
     if not data then return end
     
-    data.settings = settings
+    retain_settings(data, settings)
     
     -- Werte auslesen
     data.exposure = obs.obs_data_get_double(settings, "exposure")
@@ -1990,11 +2019,14 @@ source_info.update = function(data, settings)
     if new_lut_path ~= data.lut_path then
         -- LUT-Pfad hat sich geändert, alte Textur freigeben und neue laden
         if data.lut_tex then
-            obs.gs_texture_destroy(data.lut_tex)
+            graphics_call(function()
+                obs.gs_texture_destroy(data.lut_tex)
+            end)
             data.lut_tex = nil
         end
         
         data.lut_path = new_lut_path
+        data.lut_bound = false
         if data.lut_path and data.lut_path ~= "" then
             data.lut_tex = load_lut(data.lut_path)
             data.lut_bound = false -- Neu binden beim nächsten Render
@@ -2002,9 +2034,6 @@ source_info.update = function(data, settings)
     end
     
     data.lut_strength = obs.obs_data_get_double(settings, "lut_strength")
-    
-    -- Einstellungen speichern
-    data.settings = settings
     
     -- Flag setzen, damit neue Uniform-Werte übertragen werden
     data.dirty = true
@@ -2025,6 +2054,10 @@ source_info.video_render = function(data, _)
     
     -- Größe des Ziels ermitteln
     local target = obs.obs_filter_get_target(data.source)
+    if target == nil then
+        log_debug("Filter hat kein Ziel")
+        return
+    end
     local width = obs.obs_source_get_base_width(target)
     local height = obs.obs_source_get_base_height(target)
     
@@ -2037,27 +2070,45 @@ source_info.video_render = function(data, _)
     data.width = width
     data.height = height
     
-    -- Sichere Fehlerbehandlung während des Renderings
+    -- OBS owns the draw pass between begin/end.  Rendering a sprite manually in
+    -- that interval caused a second pass and made an exception leave the filter
+    -- transaction open.
+    local filter_begun = false
+    local rendered = false
     local success, err = pcall(function()
-        -- Begin des Filter-Prozesses
-        obs.obs_source_process_filter_begin(data.source, obs.GS_RGBA, obs.OBS_NO_DIRECT_RENDERING)
-        
-        -- **Pflicht-Loop**: aktiviert den Pass und bindet die Constant-Buffer
-        while obs.gs_effect_loop(data.effect, "Draw") do
-            -- Uniforms innerhalb der Schleife setzen, wenn cur_pass gültig ist
-            -- Metal erfordert dies, da der Constant-Buffer erst hier bereitsteht
-            set_shader_params(data)
-            
-            obs.gs_draw_sprite(nil, 0, width, height)   -- Sprite zeichnen
+        filter_begun = obs.obs_source_process_filter_begin(
+            data.source, obs.GS_RGBA, obs.OBS_NO_DIRECT_RENDERING)
+        if not filter_begun then
+            return
         end
-        
-        -- Filter sauber abschließen (ohne Effect-Parameter!)
+
+        -- A non-nil target marks the normal filter path, so set_shader_params
+        -- does not replace OBS's input texture with the preview texture.
+        data.target_texture = target
+        set_shader_params(data)
         obs.obs_source_process_filter_end(data.source, data.effect, width, height)
+        filter_begun = false
+        rendered = true
     end)
+
+    if filter_begun then
+        -- Keep begin/end balanced if setting a parameter failed.
+        local cleanup_success, cleanup_err = pcall(function()
+            obs.obs_source_process_filter_end(data.source, data.effect, width, height)
+        end)
+        filter_begun = false
+        if not cleanup_success then
+            err = tostring(err) .. "; Filter-Ende fehlgeschlagen: " .. tostring(cleanup_err)
+        end
+    end
+    data.target_texture = nil
     
     if not success then
         log_debug("Fehler beim Rendering: " .. tostring(err))
-        obs.obs_source_skip_video_filter(data.source)
+    elseif not rendered then
+        -- process_filter_begin already handles an unavailable/zero-sized
+        -- target.  Calling skip here can dereference a missing parent.
+        return
     end
 end
 
@@ -2069,14 +2120,32 @@ source_info.video_render_preview = function(data)
     
     -- Sichere Fehlerbehandlung während des Preview-Renderings
     local success, err = pcall(function()
-        -- Erstelle Preview-Textur, falls nicht vorhanden
+        local width = data.width
+        local height = data.height
+        if not width or width <= 0 then width = 200 end
+        if not height or height <= 0 then height = 200 end
+
+        -- A preview texture has a fixed allocation size.  Recreate it when the
+        -- target changes dimensions instead of keeping an ever-stale texture.
+        if data.preview_texture and
+            (data.preview_width ~= width or data.preview_height ~= height) then
+            graphics_call(function()
+                obs.gs_texture_destroy(data.preview_texture)
+            end)
+            data.preview_texture = nil
+            data.preview_width = nil
+            data.preview_height = nil
+        end
+
         if not data.preview_texture then
-            local width = data.width or 200
-            local height = data.height or 200
-            
-            obs.obs_enter_graphics()
-            data.preview_texture = obs.gs_texture_create(width, height, obs.GS_RGBA, 1, nil, obs.GS_TEXTURE_2D)
-            obs.obs_leave_graphics()
+            local texture_created, preview_texture = graphics_call(function()
+                return obs.gs_texture_create(width, height, obs.GS_RGBA, 1, nil, obs.GS_TEXTURE_2D)
+            end)
+            if texture_created and preview_texture then
+                data.preview_texture = preview_texture
+                data.preview_width = width
+                data.preview_height = height
+            end
         end
         
         -- Verwende den Effekt für die Vorschau
@@ -2091,7 +2160,7 @@ source_info.video_render_preview = function(data)
             -- Metal erfordert dies, da der Constant-Buffer erst hier bereitsteht
             set_shader_params(data)
             
-            obs.gs_draw_sprite(nil, 0, data.width, data.height)   -- Sprite zeichnen
+            obs.gs_draw_sprite(nil, 0, width, height)   -- Sprite zeichnen
         end
     end)
     
@@ -2106,9 +2175,11 @@ source_info.create = function(settings, source)
     
     -- Quelle speichern
     data.source = source
-    data.settings = settings
+    data.settings = nil
     data.width = 0
     data.height = 0
+    data.preview_width = nil
+    data.preview_height = nil
     
     -- Default-Werte setzen
     data.exposure = 0.0
@@ -2262,18 +2333,40 @@ end
 source_info.destroy = function(data)
     if not data then return end
     
-    local success, err = pcall(function()
-        if data.effect ~= nil then
-            obs.obs_enter_graphics()
-            obs.gs_effect_destroy(data.effect)
-            if data.preview_texture then
-                obs.gs_texture_destroy(data.preview_texture)
-                data.preview_texture = nil
+    local success, err = graphics_call(function()
+        -- Release each resource independently so a failure in one destructor
+        -- cannot skip the others or retain the graphics lock.
+        local destroy_errors = {}
+        local function destroy_resource(resource, destructor)
+            if resource then
+                local destroyed, destroy_err = pcall(destructor, resource)
+                if not destroyed then
+                    table.insert(destroy_errors, tostring(destroy_err))
+                end
             end
-            obs.obs_leave_graphics()
-            data.effect = nil
+        end
+
+        destroy_resource(data.effect, obs.gs_effect_destroy)
+        destroy_resource(data.preview_texture, obs.gs_texture_destroy)
+        destroy_resource(data.lut_tex, obs.gs_texture_destroy)
+
+        if #destroy_errors > 0 then
+            error(table.concat(destroy_errors, "; "))
         end
     end)
+
+    -- These may exist independently (for example after shader creation failed),
+    -- so always clear all references after the release attempt.
+    data.effect = nil
+    data.preview_texture = nil
+    data.preview_width = nil
+    data.preview_height = nil
+    data.lut_tex = nil
+    data.lut_bound = false
+    if data.settings ~= nil then
+        obs.obs_data_release(data.settings)
+        data.settings = nil
+    end
     
     if not success then
         log_debug("Fehler beim Zerstören des Filters: " .. tostring(err))
@@ -2291,20 +2384,4 @@ end
 
 function script_unload()
     log_debug("Filter entladen")
-end
-
-
-function destroy(data)
-    if data.effect then
-        obs.obs_enter_graphics()
-        obs.gs_effect_destroy(data.effect)
-        obs.obs_leave_graphics()
-        data.effect = nil
-    end
-    if data.preview_texture then
-        obs.obs_enter_graphics()
-        obs.gs_texture_destroy(data.preview_texture)
-        obs.obs_leave_graphics()
-        data.preview_texture = nil
-    end
 end
