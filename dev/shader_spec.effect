@@ -1,0 +1,273 @@
+// Lumetric Corrector 3.0.0 - OBS effect (HLSL dialect, libobs translates to GLSL/Metal)
+// This file is the authoritative spec for the colour pipeline. The Lua LUT exporter
+// (grade_pixel) must reproduce every NON-spatial stage below exactly.
+// Spatial stages (bloom, halation, sharpen, vignette, grain, mask) cannot live in a LUT.
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float4 buffer_size;      // x = width, y = height, z = 1/width, w = 1/height
+
+// --- tone -------------------------------------------------------------------
+uniform float exposure;          // -1..1  (EV, factor = pow(2, exposure))
+uniform float contrast;          // -1..1
+uniform float brightness;        // -1..1
+uniform float highlights;        // -1..1
+uniform float shadows;           // -1..1
+uniform float whites;            // -1..1
+uniform float blacks;            // -1..1
+uniform float black_lift;        //  0..1
+uniform float highlight_fade;    //  0..1
+uniform float shadow_fade;       //  0..1
+
+// --- white balance / colour ---------------------------------------------------
+uniform float temperature;       // -1..1 (+ warm)
+uniform float tint;              // -1..1 (+ magenta, - green)
+uniform float saturation;        // -1..1
+uniform float vibrance;          // -1..1
+
+// --- colour wheels (rgb offsets per tonal range, w unused) --------------------
+uniform float4 shadows_color;
+uniform float4 midtones_color;
+uniform float4 highlights_color;
+
+// --- split toning (rgb offset + strength in w) --------------------------------
+uniform float4 split_shadow;
+uniform float4 split_highlight;
+
+// --- creative fx --------------------------------------------------------------
+uniform float sharpen_amount;    // 0..1
+uniform float bloom_intensity;   // 0..1
+uniform float halation;          // 0..1
+uniform float grain_amount;      // 0..1
+uniform float grain_size;        // 1..8 (pixels at 1080p, scaled with resolution)
+uniform float grain_time;        // seconds, wrapped by the script
+
+// --- vignette -----------------------------------------------------------------
+uniform float vignette_amount;   // 0..1
+uniform float vignette_radius;   // 0..1
+uniform float vignette_feather;  // 0..1
+uniform float vignette_shape;    // 0 = circle, 1 = horizontal oval
+
+// --- mask ---------------------------------------------------------------------
+uniform float enable_mask;       // 0/1
+uniform float2 mask_pos;         // centre, 0..1 uv
+uniform float2 mask_size;        // half extents, 0..1 uv
+uniform float mask_feather;      // 0..0.5
+uniform float mask_roundness;    // 0 = rectangle, 1 = ellipse
+
+// --- 3D LUT stored as a 2D atlas of size*size tiles -----------------------------
+uniform float lut_strength;      // 0..1
+uniform float4 lut_info;         // x = cube size, y = tiles per row, z = 1/tex_w, w = 1/tex_h
+uniform texture2d lut_tex;
+
+sampler_state imageSampler {
+    Filter   = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+sampler_state lutSampler {
+    Filter   = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+struct VertDataIn {
+    float4 pos : POSITION;
+    float2 uv  : TEXCOORD0;
+};
+
+struct VertDataOut {
+    float4 pos : POSITION;
+    float2 uv  : TEXCOORD0;
+};
+
+VertDataOut VSDefault(VertDataIn v_in)
+{
+    VertDataOut vert_out;
+    vert_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    vert_out.uv  = v_in.uv;
+    return vert_out;
+}
+
+float luma_of(float3 c)
+{
+    return dot(c, float3(0.2126, 0.7152, 0.0722));
+}
+
+// ---------------------------------------------------------------------------
+// Non-spatial pipeline (mirrored 1:1 by the Lua LUT exporter)
+// ---------------------------------------------------------------------------
+float3 grade_color(float3 c)
+{
+    // 1. exposure
+    c *= pow(2.0, exposure);
+
+    // 2. tonal ranges, weighted by luminance so hues do not drift
+    float l  = luma_of(c);
+    float hw = smoothstep(0.5, 1.0, l);
+    float sw = 1.0 - smoothstep(0.0, 0.5, l);
+    float ww = smoothstep(0.7, 1.0, l);
+    float bw = 1.0 - smoothstep(0.0, 0.3, l);
+    float lw = 1.0 - smoothstep(0.0, 0.4, l);
+    c *= (1.0 + highlights * hw) * (1.0 + shadows * sw);
+    c += whites * 0.5 * ww + blacks * 0.5 * bw + black_lift * 0.5 * lw;
+
+    // 3. brightness, 4. contrast (pivot at mid grey)
+    c += brightness;
+    c = (c - 0.5) * (1.0 + contrast) + 0.5;
+
+    // 5. white balance: + temperature = warmer, + tint = magenta
+    c += temperature * float3(0.1, 0.0, -0.1) + tint * float3(0.05, -0.1, 0.05);
+    c = saturate(c);
+
+    // 6. fades towards white (film bleach look)
+    l = luma_of(c);
+    c = lerp(c, float3(1.0, 1.0, 1.0), smoothstep(0.7, 1.0, l) * highlight_fade);
+    c = lerp(c, float3(1.0, 1.0, 1.0), (1.0 - smoothstep(0.0, 0.3, l)) * shadow_fade);
+
+    // 7. colour wheels
+    l = luma_of(c);
+    float w_sh  = 1.0 - smoothstep(0.0, 0.5, l);
+    float w_hi  = smoothstep(0.5, 1.0, l);
+    float w_mid = 1.0 - w_sh - w_hi;
+    c = saturate(c + shadows_color.rgb * w_sh * 0.5 + midtones_color.rgb * w_mid * 0.3 + highlights_color.rgb * w_hi * 0.5);
+
+    // 8. split toning
+    l = luma_of(c);
+    float wS = saturate(1.0 - l * 2.0);
+    float wH = saturate((l - 0.5) * 2.0);
+    c = lerp(c, saturate(c + split_shadow.rgb),    split_shadow.w    * wS);
+    c = lerp(c, saturate(c + split_highlight.rgb), split_highlight.w * wH);
+
+    // 9. saturation
+    float g = luma_of(c);
+    c = lerp(float3(g, g, g), c, 1.0 + saturation);
+
+    // 10. vibrance (boosts low-saturation colours more than saturated ones)
+    float lum = luma_of(c);
+    float mx  = max(max(c.r, c.g), c.b);
+    float mn  = min(min(c.r, c.g), c.b);
+    float sat = (mx - mn) / max(mx, 0.0001);
+    c = lerp(float3(lum, lum, lum), c, 1.0 + vibrance * (1.0 - sat));
+
+    return c;
+}
+
+// LUT lookup: trilinear via two bilinear fetches in the 2D atlas.
+// Tile b holds the r/g plane for blue index b; tiles are laid out row-major,
+// lut_info.y tiles per row (strip layout: y == size, OBS grid PNG: y == 8).
+float3 sample_lut(float3 c)
+{
+    float size  = lut_info.x;
+    float tiles = lut_info.y;
+    c = saturate(c);
+    float bf = c.b * (size - 1.0);
+    float b0 = floor(bf);
+    float b1 = min(b0 + 1.0, size - 1.0);
+    float f  = bf - b0;
+    float2 rg = c.rg * (size - 1.0) + 0.5;
+    float2 t0 = float2(b0 - floor(b0 / tiles) * tiles, floor(b0 / tiles));
+    float2 t1 = float2(b1 - floor(b1 / tiles) * tiles, floor(b1 / tiles));
+    float2 uv0 = (t0 * size + rg) * lut_info.zw;
+    float2 uv1 = (t1 * size + rg) * lut_info.zw;
+    float3 s0 = lut_tex.Sample(lutSampler, uv0).rgb;
+    float3 s1 = lut_tex.Sample(lutSampler, uv1).rgb;
+    return lerp(s0, s1, f);
+}
+
+// 9-tap glow kernel on the input image, radius scales with resolution.
+float3 glow_sample(float2 uv)
+{
+    float2 px = buffer_size.zw * (buffer_size.y / 1080.0) * 6.0;
+    float2 dg = px * 0.7071;
+    float3 s = image.Sample(imageSampler, uv).rgb * 2.0;
+    s += image.Sample(imageSampler, uv + float2( px.x, 0.0)).rgb;
+    s += image.Sample(imageSampler, uv + float2(-px.x, 0.0)).rgb;
+    s += image.Sample(imageSampler, uv + float2(0.0,  px.y)).rgb;
+    s += image.Sample(imageSampler, uv + float2(0.0, -px.y)).rgb;
+    s += image.Sample(imageSampler, uv + dg).rgb;
+    s += image.Sample(imageSampler, uv - dg).rgb;
+    s += image.Sample(imageSampler, uv + float2( dg.x, -dg.y)).rgb;
+    s += image.Sample(imageSampler, uv + float2(-dg.x,  dg.y)).rgb;
+    return s / 10.0;
+}
+
+float3 unsharp_mask(float2 uv, float3 base, float amt)
+{
+    float2 px = buffer_size.zw;
+    float3 blur = (image.Sample(imageSampler, uv + px).rgb +
+                   image.Sample(imageSampler, uv - px).rgb +
+                   image.Sample(imageSampler, uv + float2( px.x, -px.y)).rgb +
+                   image.Sample(imageSampler, uv + float2(-px.x,  px.y)).rgb) * 0.25;
+    return saturate(base + (base - blur) * amt);
+}
+
+float hash12(float2 p)
+{
+    float3 p3 = float3(p.x, p.y, p.x) * 0.1031;
+    p3 = p3 - floor(p3);
+    p3 += dot(p3, float3(p3.y, p3.z, p3.x) + 33.33);
+    float h = (p3.x + p3.y) * p3.z;
+    return h - floor(h);
+}
+
+float4 PSDefault(VertDataOut v_in) : TARGET
+{
+    float4 src = image.Sample(imageSampler, v_in.uv);
+    float3 c = grade_color(src.rgb);
+
+    // --- spatial effects -------------------------------------------------------
+    if (bloom_intensity > 0.001 || halation > 0.001) {
+        float3 glow = glow_sample(v_in.uv);
+        float3 bright = glow * smoothstep(0.45, 0.9, luma_of(glow));
+        c += bright * bloom_intensity * 0.8;
+        c += float3(0.30, 0.10, 0.03) * bright.r * halation;
+    }
+
+    if (sharpen_amount > 0.001) {
+        c = unsharp_mask(v_in.uv, c, sharpen_amount);
+    }
+
+    if (lut_strength > 0.001) {
+        c = lerp(c, sample_lut(c), lut_strength);
+    }
+
+    if (vignette_amount > 0.0) {
+        float2 d = abs(v_in.uv - float2(0.5, 0.5));
+        float dist = lerp(length(d), sqrt(d.x * d.x * 1.5 + d.y * d.y * 0.5), vignette_shape);
+        float feather = max(vignette_feather, 0.001);
+        float vig = 1.0 - smoothstep(vignette_radius - feather, vignette_radius, dist);
+        c *= lerp(1.0, vig, vignette_amount);
+    }
+
+    if (grain_amount > 0.0) {
+        float scale = max(grain_size, 1.0) * max(buffer_size.y / 1080.0, 0.5);
+        float2 cell = floor(v_in.uv * buffer_size.xy / scale);
+        float n1 = hash12(cell + float2(grain_time * 61.0, grain_time * 37.0));
+        float n2 = hash12(cell * 1.7 + float2(grain_time * 23.0, 11.0));
+        float g = n1 + n2 - 1.0;
+        float lw = 1.0 - smoothstep(0.5, 1.0, luma_of(c));
+        c += g * grain_amount * 0.15 * (0.4 + 0.6 * lw);
+    }
+
+    if (enable_mask > 0.5) {
+        float2 size = max(mask_size, float2(0.0001, 0.0001));
+        float2 rel = (v_in.uv - mask_pos) / size;
+        float dist = lerp(max(abs(rel.x), abs(rel.y)), length(rel), mask_roundness);
+        float feather = max(mask_feather, 0.001);
+        float m = 1.0 - smoothstep(1.0 - feather, 1.0, dist);
+        c = lerp(src.rgb, c, m);
+    }
+
+    return float4(saturate(c), src.a);
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = VSDefault(v_in);
+        pixel_shader  = PSDefault(v_in);
+    }
+}

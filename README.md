@@ -1,10 +1,10 @@
 <div align="center">
   <h1>🎬 Lumetric Corrector for OBS Studio</h1>
-  <p>A professional color correction and grading filter plugin for OBS Studio with advanced customization options.</p>
-  <p>Perfect for streamers, content creators, and videographers seeking cinematic quality.</p>
+  <p>A professional color correction and grading filter for OBS Studio — one Lua script, no dependencies.</p>
+  <p>For streamers, content creators and videographers who want cinematic color without leaving OBS.</p>
 
   ![Downloads](https://img.shields.io/github/downloads/The-Geek-Freaks/lumetric_corrector/total)
-  ![Version](https://img.shields.io/badge/Version-2.2.0-blue)
+  ![Version](https://img.shields.io/badge/Version-3.0.0-blue)
   ![OBS-Lua](https://img.shields.io/badge/OBS--Lua-Compatible-green.svg)
   ![OBS](https://img.shields.io/badge/OBS-30.0+-purple.svg)
   ![Windows](https://img.shields.io/badge/Windows-10%2F11-blue)
@@ -20,272 +20,175 @@
 
 ## 📑 Table of Contents
 - [✨ Key Features](#-key-features)
-- [🎯 Use Cases](#-use-cases)
 - [💻 Installation](#-installation)
-- [🎨 Color Presets](#-color-presets)
-- [🛠️ Configuration](#️-configuration)
 - [🎮 Usage](#-usage)
+- [🎨 Presets](#-presets)
+- [🛠️ Controls](#️-controls)
+- [🧊 3D LUTs](#-3d-luts)
+- [💾 Looks & LUT Export](#-looks--lut-export)
 - [🔧 Troubleshooting](#-troubleshooting)
-- [📄 License](#-license)
+- [🧑‍💻 Development](#-development)
 - [📝 Changelog](#-changelog)
+- [📄 License](#-license)
 
 ## ✨ Key Features
 
-### 🖌️ Professional Color Correction
-- **Comprehensive Adjustment Tools**: 
-  - Exposure, contrast, brightness controls
-  - Highlights and shadows recovery
-  - Whites and blacks level adjustment
-  - Temperature and tint for white balance
-- **Advanced Color Grading**:
-  - RGB control for shadows, midtones, and highlights
-  - Saturation and vibrance enhancement
-  - Fine-tuned color balance for cinematic looks
+### 🖌️ Color Correction
+- **Tone**: Exposure, Contrast, Brightness, Highlights, Shadows, Whites, Blacks — luminance-weighted so tone changes do not shift hues
+- **Fade & Lift**: Highlight Fade, Shadow Fade and Black Lift for matte and bleach film looks
+- **White Balance**: Temperature and Tint
+- **Color**: Saturation and Vibrance
+
+### 🎨 Color Grading
+- **Color Wheels**: separate RGB offsets for Shadows, Midtones and Highlights (Lift / Gamma / Gain)
+- **Split Toning**: independent color and strength for shadows and highlights
+- **3D LUTs**: load `.cube` (any size) or `.png` LUTs with adjustable strength — works on Windows, macOS and Linux
 
 <div align="center">
   <img src="docs/features-correction.png" alt="Color Correction Features" width="800"/>
 </div>
 
-### 🎨 Creative Color Control
-- **25+ Professional Presets**:
-  - Mood-based presets like Cinematic, Teal & Orange, Dramatic Contrast
-  - Era-specific looks including 80s Retro, 90s VHS, 70s Film
-  - Creative color styles such as Cyberpunk, Desert Heat, Arctic Chill
-- **Additional Effects**:
-  - Vignette with adjustable radius and feathering
-  - Film grain simulation with size control
-  - Real-time preview for immediate visual feedback
+### ✨ Creative Effects
+- **Bloom** (thresholded 9-tap glow), **Halation** (warm glow around highlights), **Sharpen** (unsharp mask)
+- **Film Grain**: animated, luminance-weighted grain with size control
+- **Vignette** with radius, feather and shape
+- **Mask**: apply the whole grade only inside an ellipse or rectangle with soft edges
 
 <div align="center">
   <img src="docs/features-grading.png" alt="Creative Color Grading" width="800"/>
 </div>
 
-### ⚙️ Professional Features
-- **Performance Optimized**:
-  - Low CPU/GPU impact for streaming
-  - Real-time adjustments without frame drops
-  - Compatible with other OBS filters
-- **Localization**:
-  - Built-in support for English and German
-  - Easily expandable to other languages
-  - Automatic language detection
+### 🎛️ Workflow
+- **47 presets** in five categories, applied instantly when selected
+- **Looks**: save and load all color settings as JSON to share between scenes, profiles and machines
+- **LUT export**: bake the current look into a `.cube` (33³) or an OBS-compatible 512×512 `.png` LUT
+- **Bilingual UI** with tooltips in English and German (follows the OBS language)
+- **Reset all** button, LUT status line, sensible defaults
 
-## 🎯 Use Cases
-
-### Streaming Enhancement
-- Achieve professional broadcast quality
-- Create consistent visual branding through color
-- Correct problematic lighting in gaming setups
-- Match colors across different cameras or scenes
-
-<div align="center">
-  <img src="docs/usecase-streaming.png" alt="Streaming Enhancement" width="800"/>
-</div>
-
-### Content Creation
-- Apply film-like color grading to video productions
-- Correct white balance and exposure issues
-- Create mood-specific looks for different content types
-- Maintain consistent color across editing workflows
-
-### Creative Expression
-- Develop signature visual styles with custom color grading
-- Simulate vintage film stocks or modern cinema looks
-- Create genre-specific aesthetics (horror, sci-fi, drama)
-- Enhance viewer engagement with polished visuals
-
-<div align="center">
-  <img src="docs/usecase-creative.png" alt="Creative Expression" width="800"/>
-</div>
+### ⚙️ Under the hood
+- Single GPU pass; uniforms are only uploaded when a setting changes
+- One parameter table drives defaults, UI, update and shader binding — controls, presets and shader cannot drift apart
+- Old scenes are migrated automatically (internal keys leaked by earlier versions are removed)
 
 ## 💻 Installation
 
-1. Download the latest release from the [Releases](https://github.com/The-Geek-Freaks/lumetric_corrector/releases) page
-2. Place the script in your OBS scripts folder:
+1. Download `lumetric_corrector.lua` from the [latest release](https://github.com/The-Geek-Freaks/lumetric_corrector/releases/latest)
+2. Put it somewhere permanent, e.g. your OBS scripts folder:
    - Windows: `%APPDATA%\obs-studio\scripts`
    - macOS: `~/Library/Application Support/obs-studio/scripts`
    - Linux: `~/.config/obs-studio/scripts`
-3. In OBS Studio:
-   - Go to Tools → Scripts
-   - Click the + button
-   - Select the downloaded `lumetric_corrector.lua` file
-   - Add as a filter to any source or scene
+3. In OBS Studio open **Tools → Scripts**, click **+** and select the file
+4. Add **Lumetric Corrector** as a filter to any source or scene (**Filters → + → Lumetric Corrector**)
 
 <div align="center">
   <img src="docs/installation.png" alt="Installation Process" width="800"/>
 </div>
 
-### Platform-Specific Notes
+Requirements: OBS Studio 30.0 or newer on Windows 10/11, macOS 11+ or Linux. No additional dependencies.
 
-#### Windows
-- Compatible with Windows 10/11
-- OBS Studio 30.0+ recommended
-- No additional dependencies required
+## 🎮 Usage
 
-#### macOS
-- Compatible with macOS 11.0 (Big Sur) or higher
-- OBS Studio 30.0+ recommended
-- No additional dependencies required
+1. **Start with a preset** — pick one from the dropdown; it is applied immediately. Mask and LUT settings are never touched by presets.
+2. **Fine-tune** — Tone first (exposure, contrast), then white balance, then color wheels / split toning for the look, then effects.
+3. **Optional** — load a 3D LUT, or save the result as a look file / LUT for reuse.
 
-#### Linux
-- Compatible with most modern distributions
-- OBS Studio 30.0+ recommended
-- No additional dependencies required
-
-## 🎨 Color Presets
-
-### Mood Presets
-Lumetric Corrector includes professionally designed presets for instant looks:
-
-1. **Cinematic**: Film-like appearance with balanced contrast
-2. **Teal & Orange**: Popular Hollywood color grading
-3. **Vintage Film**: Classic film emulation
-4. **Dramatic Contrast**: Enhanced shadows and highlights
-5. **Bleach Bypass**: Desaturated high-contrast look
-6. **Moody Blue**: Cool-toned atmospheric grading
-7. **Horror Tone**: Dark and unsettling color palette
-8. **Warm Portrait**: Flattering skin tones enhancement
-
-<div align="center">
-  <img src="docs/presets-mood.png" alt="Mood Presets" width="800"/>
-</div>
-
-### Era Presets
-Create period-specific looks:
-
-- **80s Retro**: Bright colors with subtle contrast
-- **90s VHS**: Worn video look with shifted colors
-- **70s Film**: Warm vintage aesthetic
-- **Sepia Tone**: Classic antique photo look
-- **Black & White**: Monochromatic conversion
-
-<div align="center">
-  <img src="docs/presets-era.png" alt="Era Presets" width="800"/>
-</div>
-
-### Color Style Presets
-Creative color treatments:
-
-- **Faded Shadows**: Matte look with lifted shadows
-- **Cross Process**: Alternative processing simulation
-- **Day For Night**: Simulated nighttime from day footage
-- **Night Enhancer**: Improved visibility in dark scenes
-- **Sunset Glow**: Warm golden hour lighting
-- **Forest Green**: Nature-focused color palette
-- **Desert Heat**: Warm arid environment simulation
-- **Arctic Chill**: Cold blue-tinted environment
-- **Cyberpunk**: Futuristic neon-inspired grading
-
-<div align="center">
-  <img src="docs/presets-style.png" alt="Color Style Presets" width="800"/>
-</div>
-
-## 🛠️ Configuration
-
-### Basic Color Correction
-1. **Exposure & Contrast**:
-   - Exposure: Overall brightness adjustment (-1.0 to 1.0)
-   - Contrast: Tonal range expansion/compression (-1.0 to 1.0)
-   - Brightness: Fine-tuning of mid-range luminance (-1.0 to 1.0)
-
-2. **Tone Controls**:
-   - Highlights: Recover or enhance bright areas (-1.0 to 1.0)
-   - Shadows: Control dark area details (-1.0 to 1.0)
-   - Whites: Adjust white point (-1.0 to 1.0)
-   - Blacks: Set black level (-1.0 to 1.0)
-
-3. **Color Balance**:
-   - Temperature: Warm/cool color shift (-1.0 to 1.0)
-   - Tint: Green/magenta balance (-1.0 to 1.0)
-   - Saturation: Color intensity (-1.0 to 1.0)
-   - Vibrance: Intelligent saturation enhancement (-1.0 to 1.0)
+Tips:
+- Keep adjustments subtle; most sliders are designed so that ±0.2 is already a strong change.
+- Bloom, halation, sharpen and grain are the only effects that cost noticeable GPU time. Leave them at 0 when not needed.
+- Use the mask to grade only a face cam region or to vignette a specific area.
 
 <div align="center">
   <img src="docs/configuration-interface.png" alt="Configuration Interface" width="800"/>
 </div>
 
-### Advanced Color Grading
-1. **Shadows Color Wheels**:
-   - Red/Green/Blue: Independent control of shadow colors (-1.0 to 1.0)
+## 🎨 Presets
 
-2. **Midtones Color Wheels**:
-   - Red/Green/Blue: Independent control of midtone colors (-1.0 to 1.0)
+| Category | Presets |
+|----------|---------|
+| **Basic** | Neutral, Warm, Cool, Bright, Dark, Contrast Boost, Contrast Reduce |
+| **Style** | Cinematic, Filmic, Dramatic Contrast, Vibrant, Muted, Warm Contrast, Cool Contrast, Bleach Bypass, Faded Shadows, Cross Process, Crisp Clarity |
+| **Mood** | Warm Highlights, Blue Shadows, Green Shadows, Sunset Glow, Moonlight, Vivid Warm, Moody Blue, Warm Portrait, Day For Night, Night Enhancer, Forest Green, Desert Heat, Arctic Chill, Horror Atmosphere |
+| **Era** | Vintage Film, Retro Film, 70s Film, 80s Retro, 90s VHS, Analog VHS, Sepia Tone, Black & White, B&W High Contrast |
+| **Creative** | Neo Noir, Cyberpunk, Teal & Orange, Dreamy Bloom, Pastel Dreams, Game Stream |
 
-3. **Highlights Color Wheels**:
-   - Red/Green/Blue: Independent control of highlight colors (-1.0 to 1.0)
+<div align="center">
+  <img src="docs/presets-mood.png" alt="Mood Presets" width="800"/>
+  <img src="docs/presets-era.png" alt="Era Presets" width="800"/>
+  <img src="docs/presets-style.png" alt="Color Style Presets" width="800"/>
+</div>
 
-### Effects
-1. **Vignette**:
-   - Amount: Intensity of darkening (0.0 to 1.0)
-   - Radius: Size of the effect (0.0 to 1.0)
-   - Feather: Edge softness (0.0 to 1.0)
+## 🛠️ Controls
 
-2. **Film Grain**:
-   - Amount: Intensity of grain effect (0.0 to 1.0)
-   - Size: Grain particle size (0.0 to 100.0)
+| Group | Control | Range | Notes |
+|-------|---------|-------|-------|
+| Tone | Exposure | −1 … 1 | stops; +1 doubles the light |
+| Tone | Contrast, Brightness | −1 … 1 | contrast pivots at mid grey |
+| Tone | Highlights, Shadows, Whites, Blacks | −1 … 1 | luminance-weighted tonal ranges |
+| Fade & Lift | Highlight Fade, Shadow Fade, Black Lift | 0 … 1 | matte / bleach looks |
+| White Balance | Temperature, Tint | −1 … 1 | + = warmer / magenta |
+| Color | Saturation, Vibrance | −1 … 1 | saturation −1 = black & white |
+| Color Wheels | Shadows / Midtones / Highlights R, G, B | −1 … 1 | additive per tonal range |
+| Split Toning | Shadows / Highlights R, G, B + Strength | −1 … 1 / 0 … 1 | strength 0 = off |
+| Creative Effects | Sharpen, Bloom, Halation, Film Grain | 0 … 1 | spatial effects |
+| Creative Effects | Grain Size | 1 … 8 px | relative to 1080p |
+| Vignette | Amount, Radius, Feather, Shape | 0 … 1 | shape 0 = circle, 1 = oval |
+| Mask | Enable, Shape, Center X/Y, Width, Height, Feather | 0 … 1 | checkable group |
+| 3D LUT | LUT File, LUT Strength | 0 … 1 | strength defaults to 1 |
 
-## 🎮 Usage
+## 🧊 3D LUTs
 
-### Adding the Filter
-1. In OBS Studio, select the source or scene you want to apply color correction to
-2. Right-click and select "Filters"
-3. Click the "+" button under "Effect Filters"
-4. Select "Lumetric Corrector"
+- **`.cube`** files of any size (2 … 256) are parsed by the script, converted to a 16-bit PNG atlas once and cached in the OBS `plugin_config/lumetric_corrector` folder. Loading the same file again is instant.
+- **`.png`** files are loaded directly. Supported layouts: the OBS 512×512 grid (64³, 8 tiles per row — the format of OBS's own "Apply LUT" filter) and an N·N × N strip.
+- The LUT is applied after the color grade and before vignette/grain/mask; **LUT Strength** blends between the graded image and the LUT result.
+- The **LUT status** line in the LUT group tells you the loaded cube size or why a file was rejected.
 
-### Quick Start Guide
-1. **Using Presets**:
-   - Select a preset from the dropdown menu
-   - Click "Apply Preset" to apply the selected look
-   - Fine-tune individual parameters as needed
+## 💾 Looks & LUT Export
 
-2. **Manual Adjustment**:
-   - Start with exposure and contrast to set overall levels
-   - Adjust temperature and tint to fix white balance
-   - Use shadows and highlights to recover details
-   - Apply color grading using RGB controls for each tonal range
-   - Add effects like vignette or grain for finishing touches
-
-### Tips for Best Results
-- Start with subtle adjustments to avoid over-processed looks
-- Use presets as starting points rather than final settings
-- Consider the mood and purpose of your content when selecting colors
-- Save your custom settings for consistency across projects
+- **Save look (JSON)** writes every color setting (not mask or LUT path) to a small file; **Load look** applies such a file to the current filter.
+- **Export current look as LUT** bakes the non-spatial part of the grade — tone, white balance, wheels, split toning, saturation, vibrance and a loaded `.cube` LUT — into a LUT:
+  - `.cube`: 33×33×33, usable in Resolve, Premiere, OBS and most other tools
+  - `.png`: 512×512 grid, usable directly in OBS's built-in "Apply LUT" filter
+- Bloom, halation, sharpen, grain, vignette and mask depend on neighbouring pixels or position and therefore cannot be part of a LUT.
 
 ## 🔧 Troubleshooting
 
-### Common Issues
-1. **Filter not appearing**:
-   - Ensure OBS Studio is updated to version 30.0 or higher
-   - Check that the script is in the correct scripts folder
-   - Restart OBS Studio after adding the script
+| Symptom | What to check |
+|---------|---------------|
+| Filter not listed | OBS 30+; script added under Tools → Scripts; check the **Script Log** for `[Lumetric]` lines |
+| LUT has no effect | Read the **LUT status** line; LUT Strength above 0; for PNGs use the 512×512 grid layout |
+| Image looks too strong | Click **Reset all settings**, then start with a preset |
+| Higher GPU load | Set Bloom, Halation, Sharpen and Film Grain to 0 |
+| Settings from an old version look different | 3.0 corrected several math errors (bloom, halation, tone weighting, tint sign); re-check affected presets |
 
-2. **Performance issues**:
-   - Reduce the number of simultaneous filters
-   - Lower the quality settings in OBS
-   - Check system resource usage during streaming
+Still stuck? Open an [issue](https://github.com/The-Geek-Freaks/lumetric_corrector/issues) with your OBS version, platform and the relevant Script Log lines, or ask on [Discord](https://tgf.click/discord).
 
-3. **Color looking incorrect**:
-   - Reset all parameters to default and start again
-   - Check if multiple color filters are conflicting
-   - Ensure your monitor is calibrated correctly
+## 🧑‍💻 Development
 
-### Support
-If you encounter issues not covered here, please:
-- Create an issue on the [GitHub repository](https://github.com/The-Geek-Freaks/lumetric_corrector/issues)
-- Include your system specifications and OBS Studio version
-- Provide clear steps to reproduce the problem
+Everything lives in `lumetric_corrector.lua`. The `dev/` folder contains the tooling used to verify a release without starting OBS:
+
+```bash
+# End-to-end run of the script against an obslua mock (LuaJIT via lupa)
+uv run --with lupa python dev/run_lua.py dev/tests/test_script.lua
+
+# Module unit tests (PNG encoder, CUBE parser / atlas, colour pipeline port)
+uv run --with lupa python dev/run_lua.py dev/tests/test_png_encoder.lua
+uv run --with lupa python dev/run_lua.py dev/tests/test_cube_lut.lua
+uv run --with lupa python dev/run_lua.py dev/tests/test_grade_pixel.lua
+
+# Compile the embedded effect with the Windows HLSL compiler (fxc)
+uv run python dev/effect_to_hlsl.py --from-lua lumetric_corrector.lua
+```
+
+`dev/shader_spec.effect` is the reference for the color pipeline; the Lua LUT exporter mirrors its non-spatial stages exactly (checked against an independent Python port).
 
 ## 📝 Changelog
 
-Siehe [CHANGELOG.md](./CHANGELOG.md) für eine vollständige Liste aller Änderungen und Verbesserungen.
+See [CHANGELOG.md](./CHANGELOG.md) for all versions.
 
-### Neu in Version 1.1.2 – Creative Effects Update
-- **Highlight/Shadow Fade**: New sliders for creative film looks and bleaching effects
-- **Adjustable Vignette**: Vignette shape can now be modified from circular to oval/rectangular
-- **Living Film Grain**: Realistically animated film grain with improved time effects
+**3.0.0 highlights**: all tone controls in the UI, working 3D LUTs (`.cube` and `.png`) on every platform, 47 presets that actually apply, film grain is back, look files, PNG LUT export, bilingual tooltips, faithful LUT export, many math and stability fixes.
 
 ## 📄 License
-This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.
+This project is licensed under the GNU General Public License v3.0 — see the LICENSE file for details.
 
 ---
 

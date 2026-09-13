@@ -38,3 +38,7 @@ MANIFEST
 
 # Log files
 *.log
+
+# Test artifacts
+dev/tests/out/
+dev/tests/__pycache__/

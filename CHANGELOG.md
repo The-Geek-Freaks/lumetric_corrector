@@ -5,6 +5,49 @@ All notable changes to the Lumetric Corrector project will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-09-13
+
+Major rework: every control the shader supports is now in the UI, presets and
+LUTs actually work, and the whole script is driven by one parameter table so
+defaults, UI, update and shader can no longer drift apart.
+
+### Added
+- **Missing controls**: Brightness, Highlights, Shadows, Whites and Blacks sliders (the shader supported them since 1.0, the UI never exposed them)
+- **Film grain is back**: animated, luminance-weighted grain with amount and size controls (removed in 2.0 because of stutter; now driven by a per-frame time uniform)
+- **17 new presets** (47 in total, 5 categories): Bleach Bypass, Faded Shadows, Cross Process, Moody Blue, Warm Portrait, Day For Night, Night Enhancer, Forest Green, Desert Heat, Arctic Chill, 70s Film, 80s Retro, 90s VHS, … — every preset the README promised now exists
+- **Presets apply instantly** when selected; "Apply again" and "Reset all settings" buttons
+- **Look files**: save/load all color settings as JSON to share looks between scenes, profiles and machines
+- **LUT export as PNG**: 512x512 grid compatible with the built-in OBS "Apply LUT" filter, in addition to 33³ .cube
+- **LUT status line** in the UI shows the loaded cube size or the reason a file was rejected
+- **English and German tooltips** for every control; the UI language follows the OBS locale
+- Developer tooling in `dev/`: obslua mock + end-to-end test-suite, module unit tests, HLSL compile check via fxc
+
+### Fixed
+- **3D LUT loading was broken**: `.cube` files were passed to an image loader and the shader expected a 3D texture that was never created. LUTs are now parsed in Lua, converted to a 16-bit PNG atlas (cached in the OBS `plugin_config` folder) and sampled trilinearly from a 2D texture — works on Direct3D, OpenGL and Metal
+- **Creative presets never applied their split toning** (values were written to keys that nothing read)
+- **Presets leaked internal state** (`last_*`, `dirty`, `width`, `height`, …) into the scene file; these keys are removed automatically when an old scene is loaded
+- **LUT export ignored most controls** and used a different exposure curve than the shader; the exporter now mirrors the shader's non-spatial pipeline 1:1 (verified against an independent reference implementation) and bakes a loaded `.cube` LUT into the export
+- Vignette shape slider was read as an integer and only worked at 1.0
+- Tint direction now matches its description (+ magenta, − green)
+- Halation now only glows around highlights; bloom is thresholded and uses a 9-tap kernel instead of brightening the whole frame
+- Highlights/Shadows/Whites/Blacks are weighted by luminance instead of per channel, so tone adjustments no longer shift hues
+- Vibrance used Rec.601 luma while the rest of the pipeline used Rec.709
+- Vignette/mask feathering used reversed `smoothstep` arguments (undefined in GLSL) and could divide by zero at feather 0
+- `apply preset` ran the update callback twice; the filter reported a 0x0 size until its first tick; a missing filter target no longer leaves the frame black; nil-safety in render and button callbacks
+- Uniforms are uploaded only when settings change (previously vectors were re-set every frame)
+
+### Changed
+- UI regrouped: Presets → Tone → Fade & Lift → White Balance → Color → Color Wheels → Split Toning → Creative Effects → Vignette → Mask (checkable group) → 3D LUT → Looks & LUT Export
+- LUT strength defaults to 1.0 so a freshly selected LUT is visible immediately
+- Presets no longer touch mask or LUT settings
+- Script description uses the current version automatically
+
+### Removed
+- Dead preview-render code path and duplicate translation/log helpers
+
+### Notes for existing scenes
+All settings keys are unchanged; existing scenes load as before. Looks may differ slightly where the math was corrected (bloom, halation, tone weighting, tint sign).
+
 ## [2.2.0] - 2025-06-29
 
 ### Added

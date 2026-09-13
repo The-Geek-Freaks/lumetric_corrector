@@ -5,131 +5,119 @@
 
 [HR][/HR]
 
-[CENTER][SIZE=4][COLOR=#A088E0]✨ [B]ACHIEVE PROFESSIONAL CINEMATIC COLOR GRADING FOR YOUR STREAMS AND RECORDINGS[/B] ✨[/COLOR][/SIZE][/CENTER]
+[CENTER][SIZE=4][COLOR=#A088E0]✨ [B]CINEMATIC COLOR GRADING FOR YOUR STREAMS AND RECORDINGS – ONE LUA SCRIPT, NO DEPENDENCIES[/B] ✨[/COLOR][/SIZE][/CENTER]
 
 [SIZE=5][B][COLOR=#9370DB]Description[/COLOR][/B][/SIZE]
 [QUOTE]
-[COLOR=#8A6BBE][SIZE=4]Lumetric Corrector is a comprehensive Lua script that adds professional color correction and grading capabilities to OBS Studio. Perfect for streamers, content creators, and videographers seeking to enhance visual quality with cinematic color grading techniques.[/SIZE][/COLOR]
+[COLOR=#8A6BBE][SIZE=4]Lumetric Corrector adds a complete color correction and grading pipeline to OBS Studio: tone controls, white balance, color wheels, split toning, creative effects, vignette, masking and 3D LUTs – all in a single GPU pass, controlled from the normal filter dialog.[/SIZE][/COLOR]
 [/QUOTE]
 
 [CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/banner.png[/IMG][/CENTER]
 
-[COLOR=#666666][SIZE=4]The filter provides extensive correction and grading tools with intuitive controls for shadows, midtones, and highlights. From basic exposure adjustments to advanced RGB color wheels - create the perfect look for any content with ease![/SIZE][/COLOR]
-
 [CENTER][/CENTER]
 [TABLE]
 [TR]
-[TD][COLOR=#B795F3][SIZE=5]25+[/SIZE][/COLOR]
-[SIZE=3]Professional Presets[/SIZE][/TD]
-[TD][COLOR=#B795F3][SIZE=5]3[/SIZE][/COLOR]
-[SIZE=3]Color Wheel Controls[/SIZE][/TD]
-[TD][COLOR=#B795F3][SIZE=5]∞[/SIZE][/COLOR]
-[SIZE=3]Customization Options[/SIZE][/TD]
+[TD][COLOR=#B795F3][SIZE=5]47[/SIZE][/COLOR]
+[SIZE=3]Presets in 5 categories[/SIZE][/TD]
+[TD][COLOR=#B795F3][SIZE=5]40+[/SIZE][/COLOR]
+[SIZE=3]Controls[/SIZE][/TD]
+[TD][COLOR=#B795F3][SIZE=5]3D LUT[/SIZE][/COLOR]
+[SIZE=3].cube & .png, import & export[/SIZE][/TD]
 [TD][COLOR=#B795F3][SIZE=5]2[/SIZE][/COLOR]
-[SIZE=3]Languages Supported[/SIZE][/TD]
+[SIZE=3]Languages (EN / DE)[/SIZE][/TD]
 [/TR]
 [/TABLE]
-
 
 [HR][/HR]
 
 [SIZE=6][B][COLOR=#9370DB]⚡ Main Features[/COLOR][/B][/SIZE]
 
-[SIZE=5][B][COLOR=#8A6BBE] Professional Color Correction[/COLOR][/B][/SIZE]
+[SIZE=5][B][COLOR=#8A6BBE]Color Correction[/COLOR][/B][/SIZE]
 [LIST]
-[*][B]Complete exposure and contrast controls:[/B] Fine-tune brightness, highlights, shadows, whites and blacks
-[*][B]Advanced white balance adjustment[/B] with temperature and tint controls for perfect color accuracy
-[*][B]Precise tonal range recovery[/B] to bring back details in highlights and shadows
+[*][B]Tone:[/B] Exposure, Contrast, Brightness, Highlights, Shadows, Whites, Blacks – luminance-weighted, so tone changes do not shift hues
+[*][B]Fade & Lift:[/B] Highlight Fade, Shadow Fade, Black Lift for matte and bleach film looks
+[*][B]White Balance & Color:[/B] Temperature, Tint, Saturation, Vibrance
 [/LIST]
 
 [CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/features-correction.png[/IMG]
-[SIZE=3][I]Comprehensive color correction controls in Lumetric Corrector[/I][/SIZE][/CENTER]
+[SIZE=3][I]Color correction controls[/I][/SIZE][/CENTER]
 
-[SIZE=5][B][COLOR=#8A6BBE] Advanced Color Grading[/COLOR][/B][/SIZE]
+[SIZE=5][B][COLOR=#8A6BBE]Color Grading[/COLOR][/B][/SIZE]
 [LIST]
-[*][B]Separate RGB control for shadows, midtones, and highlights[/B] for precise color manipulation
-[*][B]Saturation and vibrance enhancement[/B] for controlled color intensity
-[*][B]Vignette and film grain effects[/B] for added cinematic quality and texture
+[*][B]Color wheels:[/B] separate RGB offsets for shadows, midtones and highlights (Lift / Gamma / Gain)
+[*][B]Split toning:[/B] independent color and strength for shadows and highlights
+[*][B]3D LUTs:[/B] load .cube files of any size or .png LUTs (OBS 512x512 grid) with adjustable strength – Windows, macOS and Linux
 [/LIST]
 
 [CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/features-grading.png[/IMG]
-[SIZE=3][I]Advanced color grading tools with RGB controls[/I][/SIZE][/CENTER]
+[SIZE=3][I]Grading tools[/I][/SIZE][/CENTER]
 
-[SIZE=5][B][COLOR=#8A6BBE] Extensive Preset Collection[/COLOR][/B][/SIZE]
+[SIZE=5][B][COLOR=#8A6BBE]Creative Effects & Workflow[/COLOR][/B][/SIZE]
 [LIST]
-[*][B]25+ professionally designed presets[/B] in three categories: Mood, Era, and Color Style
-[*][B]Instant transformation[/B] with popular looks like Teal & Orange, Vintage Film, and Cyberpunk
-[*][B]One-click application[/B] - perfect for quick style changes during streams or recordings
+[*][B]Bloom, Halation, Sharpen, animated Film Grain, Vignette[/B] with radius, feather and shape
+[*][B]Mask:[/B] apply the whole grade only inside an ellipse or rectangle with soft edges
+[*][B]47 presets[/B] (Basic, Style, Mood, Era, Creative) that apply instantly, plus "Reset all"
+[*][B]Looks:[/B] save and load all color settings as JSON to share between scenes, profiles and computers
+[*][B]LUT export:[/B] bake your look into a 33³ .cube or an OBS-compatible 512x512 .png LUT
 [/LIST]
 
 [CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/presets-mood.png[/IMG]
-[SIZE=3][I]Mood presets for instant atmosphere enhancement[/I][/SIZE]
+[SIZE=3][I]Mood presets[/I][/SIZE]
 
 [IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/presets-era.png[/IMG]
-[SIZE=3][I]Era presets for period-specific looks[/I][/SIZE][/CENTER]
+[SIZE=3][I]Era presets[/I][/SIZE][/CENTER]
 
 [HR][/HR]
 
-[SIZE=6][B][COLOR=#9370DB] Use Cases[/COLOR][/B][/SIZE]
+[SIZE=6][B][COLOR=#9370DB]Use Cases[/COLOR][/B][/SIZE]
 
 [CENTER][/CENTER]
 [TABLE]
 [TR]
 [TD]
-
-[SIZE=4][B]Streaming Enhancement[/B][/SIZE]
+[SIZE=4][B]Streaming[/B][/SIZE]
 [LIST]
-[*]Achieve professional broadcast quality
-[*]Create consistent visual branding through color
-[*]Correct problematic lighting in gaming setups
+[*]Broadcast-quality camera image
+[*]Consistent visual branding through color
+[*]Fix difficult lighting in gaming setups
 [/LIST][/TD]
-
 [TD][SIZE=4][B]Content Creation[/B][/SIZE]
 [LIST]
-[*]Apply film-like color grading to video productions
-[*]Correct white balance and exposure issues
-[*]Create mood-specific looks for different content
+[*]Film-like grading for recordings
+[*]Correct white balance and exposure
+[*]Mood-specific looks per content type
 [/LIST][/TD]
-
-[TD][SIZE=4][B]Creative Expression[/B][/SIZE]
+[TD][SIZE=4][B]Creative[/B][/SIZE]
 [LIST]
-[*]Develop signature visual styles with custom grading
-[*]Simulate vintage film stocks or cinema looks
-[*]Create genre-specific aesthetics (horror, sci-fi)
+[*]Signature styles with custom grading
+[*]Vintage film stocks, VHS, cinema looks
+[*]Genre aesthetics (horror, sci-fi, retro)
 [/LIST][/TD]
 [/TR]
 [/TABLE]
 
-
-[CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/installation.png[/IMG]
-[SIZE=3][I]Adding Lumetric Corrector as a filter in OBS Studio[/I][/SIZE]
-
-[IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/usecase-streaming.png[/IMG]
-[SIZE=3][I]Example of color correction enhancing a gaming stream[/I][/SIZE]
+[CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/usecase-streaming.png[/IMG]
+[SIZE=3][I]Color correction on a gaming stream[/I][/SIZE]
 
 [IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/usecase-creative.png[/IMG]
-[SIZE=3][I]Creative color grading creating a distinctive look[/I][/SIZE][/CENTER]
+[SIZE=3][I]Creative grading[/I][/SIZE][/CENTER]
 
 [HR][/HR]
 
-[SIZE=6][B][COLOR=#9370DB] Installation & Usage[/COLOR][/B][/SIZE]
+[SIZE=6][B][COLOR=#9370DB]Installation & Usage[/COLOR][/B][/SIZE]
 
-[QUOTE]
-[SIZE=4][B]"Transform your content with professional color in minutes. From basic corrections to advanced grading - all with an intuitive interface."[/B][/SIZE]
-[/QUOTE]
-
-[SIZE=4][COLOR=#8A6BBE][B]Three Simple Steps:[/B][/COLOR][/SIZE]
+[SIZE=4][COLOR=#8A6BBE][B]Three simple steps:[/B][/COLOR][/SIZE]
 [LIST=1]
-[*][COLOR=#666666][SIZE=4][B]Download[/B] the script and place it in your OBS scripts folder[/SIZE][/COLOR]
+[*][COLOR=#666666][SIZE=4][B]Download[/B] lumetric_corrector.lua and add it under Tools → Scripts[/SIZE][/COLOR]
 [*][COLOR=#666666][SIZE=4][B]Add "Lumetric Corrector"[/B] as a filter to any source or scene[/SIZE][/COLOR]
-[*][COLOR=#666666][SIZE=4][B]Choose a preset[/B] or adjust parameters to create your perfect look[/SIZE][/COLOR]
+[*][COLOR=#666666][SIZE=4][B]Pick a preset[/B] or adjust the sliders – every control has a tooltip[/SIZE][/COLOR]
 [/LIST]
 
 [CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/installation.png[/IMG]
-[SIZE=3][I]Installing Lumetric Corrector in OBS Studio[/I][/SIZE]
+[SIZE=3][I]Adding the filter in OBS Studio[/I][/SIZE]
 
 [IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/configuration-interface.png[/IMG]
-[SIZE=3][I]Complete color correction and grading interface[/I][/SIZE][/CENTER]
+[SIZE=3][I]Filter interface[/I][/SIZE][/CENTER]
 
 [HR][/HR]
 
@@ -139,37 +127,42 @@
 [TABLE]
 [TR]
 [TD]
-[B]Multilingual[/B]
-[SIZE=2]German & English[/SIZE][/TD]
+[B]Languages[/B]
+[SIZE=2]English & German (follows OBS)[/SIZE][/TD]
 [TD]
-[B]OBS Compatibility[/B]
-[SIZE=2]30.0+[/SIZE][/TD]
+[B]OBS[/B]
+[SIZE=2]30.0+ (tested with 32.x)[/SIZE][/TD]
 [TD]
 [B]Platforms[/B]
 [SIZE=2]Windows, macOS, Linux[/SIZE][/TD]
-[TD][SIZE=4][COLOR=#8A6BBE]⚡[/COLOR][/SIZE]
+[TD]
 [B]Performance[/B]
-[SIZE=2]GPU-accelerated[/SIZE][/TD]
+[SIZE=2]Single GPU pass, uniforms uploaded only on change[/SIZE][/TD]
 [TD]
 [B]Dependencies[/B]
-[SIZE=2]None required[/SIZE][/TD]
+[SIZE=2]None[/SIZE][/TD]
 [/TR]
 [/TABLE]
 
-
-[SIZE=5][B][COLOR=#8A6BBE]️ Developer Notes[/COLOR][/B][/SIZE]
-[QUOTE]
-[SIZE=3]Lumetric Corrector is optimized for performance with shader-based processing that takes advantage of your GPU. The script uses manual localization file loading instead of os_enumerate_files for improved stability across different environments.[/SIZE]
-[/QUOTE]
+[SIZE=5][B][COLOR=#8A6BBE]What's new in 3.0.0[/COLOR][/B][/SIZE]
+[LIST]
+[*]Brightness, Highlights, Shadows, Whites and Blacks are finally in the UI
+[*]3D LUTs work: .cube files are converted to a cached 16-bit atlas and sampled trilinearly on every platform
+[*]47 presets (17 new), applied instantly; presets no longer leak internal data into your scene file
+[*]Film grain is back, bloom and halation reworked, tone controls luminance-weighted
+[*]Look files (JSON), PNG LUT export, LUT status line, English and German tooltips
+[*]Faithful LUT export that matches the on-screen image, many stability fixes
+[/LIST]
+Full list: [URL='https://github.com/The-Geek-Freaks/lumetric_corrector/blob/main/CHANGELOG.md']CHANGELOG[/URL]
 
 [HR][/HR]
 
-[SIZE=6][B][COLOR=#9370DB] Support[/COLOR][/B][/SIZE]
+[SIZE=6][B][COLOR=#9370DB]Support[/COLOR][/B][/SIZE]
 
-[SIZE=4]For questions or issues, visit our [URL='https://github.com/The-Geek-Freaks/lumetric_corrector']GitHub page[/URL] or join our [URL='https://tgf.click/discord']Discord[/URL].[/SIZE]
+[SIZE=4]Questions or issues: [URL='https://github.com/The-Geek-Freaks/lumetric_corrector']GitHub[/URL] · [URL='https://tgf.click/discord']Discord[/URL]. Please include your OBS version, platform and the [Lumetric] lines from the Script Log.[/SIZE]
 
-[CENTER][SIZE=5][COLOR=#8A6BBE][B]Download Now and Transform Your Visual Content![/B][/COLOR][/SIZE]
+[CENTER][SIZE=5][COLOR=#8A6BBE][B]Download and transform your image![/B][/COLOR][/SIZE]
 
-[URL='https://github.com/The-Geek-Freaks/lumetric_corrector/releases/download/1.0/lumetric_corrector.lua'][SIZE=5][COLOR=#FFFFFF][B]⬇️ DOWNLOAD LUMETRIC CORRECTOR[/B][/COLOR][/SIZE][/URL]
+[URL='https://github.com/The-Geek-Freaks/lumetric_corrector/releases/latest/download/lumetric_corrector.lua'][SIZE=5][B]⬇️ DOWNLOAD LUMETRIC CORRECTOR (latest)[/B][/SIZE][/URL]
 
-[SIZE=3][COLOR=#666666]TheGeekFreaks © 2025 | Lumetric Corrector v1.0.0[/COLOR][/SIZE][/CENTER]
+[SIZE=3][COLOR=#666666]TheGeekFreaks © 2025–2026 | Lumetric Corrector v3.0.0 | GPLv3[/COLOR][/SIZE][/CENTER]
