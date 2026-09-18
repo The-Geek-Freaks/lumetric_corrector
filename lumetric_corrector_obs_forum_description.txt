@@ -14,6 +14,10 @@
 
 [CENTER][IMG]https://raw.githubusercontent.com/The-Geek-Freaks/lumetric_corrector/refs/heads/main/docs/banner.png[/IMG][/CENTER]
 
+[B]Third-party notice:[/B] Lumetric Corrector is an independent script for OBS Studio. It is not part of OBS Studio and is not developed by, affiliated with or endorsed by the OBS Project.
+
+[B]AI disclosure (per the Forum Resource and IP Policy):[/B] This script was developed with AI coding assistants operated and directed by the maintainer. Version 3.0.0 was developed with substantial assistance from Anthropic Claude (Lua code, the effect shader, the automated test tooling and documentation drafts); earlier versions used OpenAI Codex for individual fixes. The maintainer reviewed the changes and verified them with an automated test-suite and manual tests in OBS Studio 32.1.2 before release. This description was drafted with AI assistance and reviewed by the maintainer. Source code: [URL='https://github.com/The-Geek-Freaks/lumetric_corrector']GitHub[/URL] (GPLv3).
+
 [CENTER][/CENTER]
 [TABLE]
 [TR]
