@@ -5,6 +5,11 @@ All notable changes to the Lumetric Corrector project will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **OBS crash when adding the filter on Windows accounts with non-ASCII user names** (e.g. `C:\Users\José`): `os.getenv("USERPROFILE")` returns ANSI-codepage bytes, which are not valid UTF-8. The path was stored as a default setting, and obs-websocket threw while serializing the filter settings to JSON. Default export paths now fall back to the OBS config folder when the profile path is not valid UTF-8.
+
 ## [3.0.0] - 2026-09-13
 
 Major rework: every control the shader supports is now in the UI, presets and

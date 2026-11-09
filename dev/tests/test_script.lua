@@ -383,6 +383,38 @@ else
     check(H.import_look(data, OUT .. "/nope.json") == false, "missing look reported")
 end
 
+section("default paths with non-UTF-8 profile (Windows ANSI codepage)")
+do
+    -- os.getenv liefert unter Windows CP1252-Bytes. Ein ungueltiger UTF-8-String als
+    -- Default-Setting liess die JSON-Serialisierung von obs-websocket abstuerzen.
+    local real_getenv = os.getenv
+    local function with_home(home, fn)
+        os.getenv = function(key)
+            if key == "USERPROFILE" then return home end
+            return real_getenv(key)
+        end
+        local ok, err = pcall(fn)
+        os.getenv = real_getenv
+        assert(ok, err)
+    end
+
+    check(H.is_valid_utf8("C:\\Users\\Ector"), "ASCII is valid UTF-8")
+    check(H.is_valid_utf8("C:\\Users\\Jos\195\169"), "UTF-8 e-acute is valid")
+    check(not H.is_valid_utf8("C:\\Users\\Jos\233"), "CP1252 e-acute is rejected")
+    check(not H.is_valid_utf8("\195"), "truncated sequence is rejected")
+    check(not H.is_valid_utf8("\192\128"), "overlong sequence is rejected")
+
+    with_home("C:\\Users\\Jos\233 Ector", function()
+        local p = H.default_documents_path("lumetric_look.cube")
+        check(H.is_valid_utf8(p), "ANSI profile path never yields invalid UTF-8")
+        check(p:find("lumetric_look.cube", 1, true) ~= nil, "file name kept for ANSI profile")
+    end)
+    with_home("C:\\Users\\Jos\195\169 Ector", function()
+        local p = H.default_documents_path("lumetric_look.json")
+        check(p:find("Jos\195\169 Ector", 1, true) ~= nil, "valid UTF-8 profile path is kept")
+    end)
+end
+
 section("destroy")
 info.destroy(data)
 check(data.effect == nil and data.lut == nil, "resources cleared")

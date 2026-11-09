@@ -1475,9 +1475,44 @@ local function lut_cache_dir()
     return nil
 end
 
+-- Prueft, ob ein String gueltiges UTF-8 ist (LuaJIT hat keine utf8-Bibliothek).
+local function is_valid_utf8(s)
+    local i, n = 1, #s
+    while i <= n do
+        local c = s:byte(i)
+        local len
+        if c < 0x80 then len = 1
+        elseif c >= 0xC2 and c <= 0xDF then len = 2
+        elseif c >= 0xE0 and c <= 0xEF then len = 3
+        elseif c >= 0xF0 and c <= 0xF4 then len = 4
+        else return false end
+        for k = 1, len - 1 do
+            local cc = s:byte(i + k)
+            if not cc or cc < 0x80 or cc > 0xBF then return false end
+        end
+        i = i + len
+    end
+    return true
+end
+
+-- Unter Windows liefert os.getenv() Bytes der ANSI-Codepage, nicht UTF-8. Ein Profilpfad
+-- wie "C:\Users\Jos<E9>" ist dann kein gueltiges UTF-8; als Default-Setting gespeichert
+-- laesst er die JSON-Serialisierung von obs-websocket eine Ausnahme werfen (OBS stuerzt
+-- beim Hinzufuegen des Filters ab). Deshalb nur gueltiges UTF-8 verwenden.
 local function default_documents_path(filename)
     local home = os.getenv("USERPROFILE") or os.getenv("HOME") or ""
     local sep = path_separator()
+    if not is_valid_utf8(home) then
+        -- Fallback: OBS-Konfigpfad (liefert UTF-8), sonst nur der Dateiname
+        local ok, dir = false, nil
+        if obs.os_get_config_path_ptr then
+            ok, dir = pcall(obs.os_get_config_path_ptr, "obs-studio/plugin_config/lumetric_corrector")
+        end
+        if ok and type(dir) == "string" and dir ~= "" and is_valid_utf8(dir) then
+            return dir .. "/" .. filename
+        end
+        return filename
+    end
     local docs = home .. sep .. "Documents"
     if obs.os_file_exists and not obs.os_file_exists(docs) then
         docs = home   -- z. B. Linux ohne XDG-Dokumentenordner
@@ -2220,5 +2255,6 @@ if rawget(_G, "LUMETRIC_TEST_HOOK") then
         export_lut = export_lut, export_look = export_look, import_look = import_look,
         apply_preset_to_settings = apply_preset_to_settings, reset_settings = reset_settings,
         prepare_lut = prepare_lut, lut_cache_dir = lut_cache_dir, tr = tr, is_look_key = is_look_key,
+        default_documents_path = default_documents_path, is_valid_utf8 = is_valid_utf8,
     })
 end
